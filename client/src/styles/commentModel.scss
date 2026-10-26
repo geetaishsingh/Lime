@@ -1,0 +1,212 @@
+@use './variable.scss' as *;
+
+.comment-modal-dialog {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: $radius-xl;
+  width: 100%;
+  max-width: 900px;
+  height: 85vh;
+  max-height: 640px;
+  display: flex;
+  overflow: hidden;
+  box-shadow: $shadow-xl;
+  position: relative;
+  animation: scaleUp 180ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    max-height: 90vh;
+  }
+
+  .modal-close-corner-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    color: var(--text-secondary);
+    z-index: 50;
+    padding: 6px;
+    border-radius: $radius-full;
+    background: rgba(0, 0, 0, 0.4);
+    transition: all $transition-fast;
+
+    &:hover {
+      color: #fff;
+      background: rgba(0, 0, 0, 0.7);
+    }
+  }
+
+  /* Left Column: Media */
+  .modal-media-pane {
+    flex: 1.2;
+    background-color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+
+    .modal-media-content,
+    .pro-video-player-container {
+      width: 100%;
+      height: 100%;
+      max-height: 640px;
+      object-fit: contain;
+    }
+
+    @media (max-width: 768px) {
+      flex: 1;
+      max-height: 280px;
+    }
+  }
+
+  /* Right Column: Comments & Details */
+  .modal-details-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-card);
+    border-left: 1px solid var(--border-subtle);
+    min-width: 0;
+
+    .modal-author-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+
+      .author-pill-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        .author-avatar {
+          width: 36px;
+          height: 36px;
+          border-radius: $radius-full;
+          object-fit: cover;
+        }
+
+        .author-username {
+          font-size: 14px;
+          font-weight: 700;
+          color: var(--text-primary);
+          &:hover { color: var(--lime-accent); }
+        }
+      }
+    }
+
+    /* Comments Scroll */
+    .modal-comments-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+
+      .caption-entry-row, .comment-entry-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+
+        .comment-avatar {
+          width: 32px;
+          height: 32px;
+          border-radius: $radius-full;
+          object-fit: cover;
+          flex-shrink: 0;
+        }
+
+        .entry-body {
+          flex: 1;
+          font-size: 13px;
+          line-height: 1.4;
+          color: var(--text-primary);
+
+          .entry-username {
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-right: 4px;
+            &:hover { color: var(--lime-accent); }
+          }
+
+          .comment-time {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+          }
+        }
+
+        .delete-comment-btn {
+          color: var(--text-muted);
+          padding: 4px;
+          &:hover { color: $danger; }
+        }
+      }
+
+      .no-comments-note {
+        text-align: center;
+        padding: 40px 0;
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+    }
+
+    /* Actions Bar */
+    .modal-actions-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px 4px;
+      border-top: 1px solid var(--border-subtle);
+
+      .action-btn {
+        color: var(--text-secondary);
+        transition: all $transition-fast;
+
+        &:hover {
+          color: var(--text-primary);
+          transform: scale(1.1);
+        }
+
+        &.liked { color: #ef4444; }
+        &.bookmarked { color: var(--lime-accent); }
+      }
+    }
+
+    .modal-likes-count {
+      padding: 0 16px 10px;
+      font-size: 13px;
+      color: var(--text-primary);
+      b { font-weight: 700; }
+    }
+
+    /* Comment Form */
+    .modal-comment-form {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--border-subtle);
+      background-color: var(--bg-surface);
+
+      .modal-comment-input {
+        flex: 1;
+        background: transparent;
+        font-size: 13px;
+        color: var(--text-primary);
+        &::placeholder { color: var(--text-muted); }
+      }
+
+      .modal-comment-submit-btn {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--lime-accent);
+        padding: 4px 8px;
+        transition: opacity $transition-fast;
+
+        &:hover:not(:disabled) { opacity: 0.8; }
+        &:disabled { opacity: 0.4; cursor: not-allowed; }
+      }
+    }
+  }
+}

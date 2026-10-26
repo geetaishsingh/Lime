@@ -1,0 +1,131 @@
+@use './mixin.scss' as *;
+@media (min-width:1150px) {
+  .dashboard-container {
+    .dashboard-inner-container {
+      .right-sidebar {
+        display: block;
+      }
+    }
+  }
+
+  .container {
+    max-width: 1500px;
+  }
+}
+
+
+@media (max-width:748px) {
+  .sidebar {
+    display: none;
+  }
+
+  .top-header,
+  .bottom-header {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .feed-container {
+    margin: 40px 0;
+  }
+
+  .post-card {
+    .post {
+      width: 100%;
+    }
+  }
+
+  .feed-container .feed-inner-container {
+    width: 100%;
+  }
+
+  .empty {
+    min-height: 25vh;
+  }
+
+  .comment-pouup-model {
+    margin: 40px 0;
+    top: 0;
+
+    .back-btn {
+      display: block;
+    }
+
+    .inner-container {
+      .post {
+        display: none;
+      }
+
+      .right-section {
+        height: 90vh;
+        padding: 20px;
+        width: 350px !important;
+
+        .author-info {
+          margin-left: 15px;
+        }
+
+        .comments-section {
+          height: 400px;
+        }
+
+        .input-wrapper {
+          bottom: 20px;
+        }
+      }
+    }
+
+  }
+
+  .search-wrapper {
+    margin: 40px 0;
+    width: 100%;
+    border-right: none;
+
+    .cross {
+      display: none;
+    }
+  }
+
+  .notifContainer {
+    margin: 40px 0;
+
+    .closeBtn {
+      display: none;
+    }
+  }
+
+
+  .post-inner-container {
+
+    .create-section {
+      .add-post-on-phone-screen {
+        display: block !important;
+      }
+
+      .caption-wrapper {
+        .caption {
+          min-height: 0px !important;
+        }
+      }
+    }
+
+    .modal {
+
+      .card,
+      .post-image {
+        display: none;
+      }
+
+    }
+  }
+
+  .ep-inner {
+    margin: 40px 0;
+  }
+
+  .chatbox {
+    padding: 45px 0;
+  }
+}

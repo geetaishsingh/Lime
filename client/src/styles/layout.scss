@@ -1,0 +1,26 @@
+@use './mixin.scss' as *;
+@use './posts.scss';
+@use './commentModel.scss';
+
+.feed-container {
+  @include flex-center;
+  flex-direction: column;
+
+  .feed-inner-container {
+    padding: 20px 10px;
+    width: 63%;
+
+    .stoires-wrapper {
+      @include flex-left;
+      gap: 10px;
+      overflow: hidden;
+
+      .story-card {
+        width: 80px;
+        height: 80px;
+        border-radius: 100%;
+        border: 1px solid white
+      }
+    }
+  }
+}

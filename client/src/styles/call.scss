@@ -1,0 +1,345 @@
+// ----------------------------------------------------------------------
+// CallPage.scss — full call screen: "calling..." state + connected state
+// ----------------------------------------------------------------------
+
+$black: #0d0f11;
+$panel: #2c2f33;
+$panel-light: #3a3d42;
+$danger: #e53939;
+$danger-hover: #cc2f2f;
+$text: #ffffff;
+$muted: #b8bcc2;
+
+$btn-size: 60px;
+
+.calling-screen {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  background: $black;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  // Top header with mobile back navigation (Requirement 9)
+  .call-top-bar {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .call-back-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      cursor: pointer;
+      transition: background 0.15s ease;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.8);
+      }
+    }
+
+    .call-top-meta {
+      display: flex;
+      flex-direction: column;
+
+      .call-top-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #fff;
+      }
+
+      .call-top-status {
+        font-size: 12px;
+        color: $muted;
+      }
+    }
+  }
+
+  // Remote peer's video — hidden until connected, then fills the screen
+  &__remote-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 0;
+  }
+
+  &--connected .calling-screen__remote-video {
+    opacity: 1;
+  }
+
+  // Self-preview box — top right while calling, shrinks to a corner overlay once connected
+  &__self-preview {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    width: 220px;
+    aspect-ratio: 3 / 4;
+    background: $panel;
+    border: 1px solid #55585d;
+    border-radius: 16px;
+    overflow: hidden;
+    z-index: 2;
+    transition: width 0.3s ease;
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    @media (max-width: 640px) {
+      width: 110px;
+      top: 16px;
+      right: 16px;
+    }
+  }
+
+  &--connected &__self-preview {
+    width: 130px;
+
+    @media (max-width: 640px) {
+      width: 90px;
+    }
+  }
+
+  &__center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 48px;
+    text-align: center;
+    z-index: 1;
+  }
+
+  &__avatar {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    border: 3px solid $text;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: $panel-light;
+    margin-bottom: 16px;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  &__avatar-fallback {
+    font-size: 42px;
+    font-weight: 600;
+    color: $text;
+  }
+
+  &__name {
+    font-size: 24px;
+    font-weight: 700;
+    color: $text;
+    margin: 0 0 6px;
+  }
+
+  &__status {
+    font-size: 15px;
+    color: $muted;
+    margin: 0;
+  }
+
+  &__controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 18px;
+    padding: 28px 0 40px;
+    z-index: 2;
+    margin-top: auto;
+  }
+}
+
+.call-btn {
+  width: $btn-size;
+  height: $btn-size;
+  border-radius: 50%;
+  border: none;
+  background: $panel;
+  color: $text;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+
+  &:hover {
+    background: $panel-light;
+  }
+
+  &:active {
+    transform: scale(0.94);
+  }
+
+  &--active {
+    background: $text;
+    color: $black;
+
+    &:hover {
+      background: #e6e6e6;
+    }
+  }
+
+  &--hangup {
+    background: $danger;
+
+    &:hover {
+      background: $danger-hover;
+    }
+  }
+}
+
+/* Incoming Call Modal Overlay */
+.incoming-call-backdrop {
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .incoming-call-card {
+    background-color: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 28px;
+    padding: 36px 32px 32px;
+    width: 90%;
+    max-width: 380px;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+
+    .incoming-call-avatar-wrapper {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+
+      .pulsing-call-ring {
+        position: absolute;
+        inset: -12px;
+        border-radius: 50%;
+        border: 2px solid #84cc16;
+        animation: call-ring-pulse 1.8s infinite ease-out;
+
+        &.delayed {
+          animation-delay: 0.9s;
+        }
+      }
+
+      .incoming-call-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #84cc16;
+        position: relative;
+        z-index: 2;
+      }
+    }
+
+    .incoming-call-meta {
+      h3 {
+        font-size: 20px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 6px;
+      }
+
+      .incoming-call-type {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 14px;
+        color: #a1a1aa;
+        margin: 0;
+      }
+    }
+
+    .incoming-call-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 36px;
+      margin-top: 36px;
+
+      .call-action-circle-btn {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        cursor: pointer;
+        transition: transform 0.15s ease, opacity 0.15s ease;
+
+        &:hover {
+          transform: scale(1.08);
+          opacity: 0.95;
+        }
+
+        &.decline-btn {
+          background-color: #ef4444;
+          box-shadow: 0 8px 24px -4px rgba(239, 68, 68, 0.5);
+        }
+
+        &.accept-btn {
+          background-color: #22c55e;
+          box-shadow: 0 8px 24px -4px rgba(34, 197, 94, 0.5);
+        }
+      }
+    }
+  }
+}
+
+@keyframes call-ring-pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}

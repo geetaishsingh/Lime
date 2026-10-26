@@ -1,0 +1,63 @@
+@use './reset.scss';
+@use './variable.scss';
+@use './common.scss';
+@use './auth.scss';
+@use './dashboard.scss';
+@use './posts.scss';
+@use './createPost.scss';
+@use './profile.scss';
+@use './editProfile.scss';
+@use './message.scss';
+@use './notifiaction.scss';
+@use './search.scss';
+@use './commentModel.scss';
+@use './call.scss';
+@use './customVideoPlayer.scss';
+
+/* Universal Dropdown & Menu styling */
+.conv-dropdown {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 6px;
+  min-width: 190px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.conv-dropdown .conv-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  width: 100%;
+  cursor: pointer;
+  border-radius: 6px;
+  text-align: left;
+  transition: background-color 150ms;
+}
+
+.conv-dropdown .conv-dropdown-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.conv-dropdown .conv-dropdown-item.danger {
+  color: #ef4444;
+}
+
+.conv-dropdown .conv-dropdown-item.danger svg {
+  color: #ef4444;
+}
+
+.conv-dropdown .conv-dropdown-divider {
+  height: 1px;
+  background-color: var(--border-subtle);
+  margin: 4px 0;
+}
