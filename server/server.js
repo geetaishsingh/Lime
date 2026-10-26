@@ -32,6 +32,7 @@ const allowedOrigins = [
   "http://localhost:3000",
   "http://127.0.0.1:5173",
   "https://line-1-88y0.onrender.com",
+  "https://lime-tgyy.onrender.com",
 ];
 
 const io = new Server(server, {
