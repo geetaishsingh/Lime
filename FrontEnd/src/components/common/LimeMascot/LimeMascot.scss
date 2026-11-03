@@ -1,0 +1,178 @@
+.lime-mascot-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto;
+  user-select: none;
+  pointer-events: none;
+
+  /* Top Hair Tuft / Cream Sprout */
+  .mascot-hair-tuft {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+
+    .tuft-blob {
+      display: inline-block;
+      background: #fbf8ee;
+      border-radius: 50% 50% 40% 40%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+
+      &.left {
+        width: 18px;
+        height: 24px;
+        transform: rotate(-18deg) translateY(2px);
+      }
+
+      &.right {
+        width: 16px;
+        height: 22px;
+        transform: rotate(18deg) translateY(2px);
+        margin-left: -5px;
+      }
+    }
+  }
+
+  /* Eyebrows */
+  .mascot-eyebrows-row {
+    display: flex;
+    justify-content: space-between;
+    width: 210px;
+    padding: 0 10px;
+    margin-bottom: 6px;
+
+    .mascot-eyebrow {
+      display: inline-block;
+      width: 42px;
+      height: 12px;
+      border-top: 5px solid #0a0e1a;
+      border-radius: 50% 50% 0 0;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+      &.eyebrow-left {
+        transform: rotate(-6deg);
+      }
+
+      &.eyebrow-right {
+        transform: rotate(6deg);
+      }
+    }
+  }
+
+  /* Big Eyes */
+  .mascot-eyes-row {
+    display: flex;
+    justify-content: space-between;
+    width: 210px;
+    margin-bottom: 12px;
+
+    .mascot-eye {
+      position: relative;
+      width: 82px;
+      height: 82px;
+      background: #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      animation: mascotBlink 4.5s infinite ease-in-out;
+
+      &.eye-left {
+        transform: rotate(-2deg);
+      }
+
+      &.eye-right {
+        transform: rotate(2deg);
+      }
+
+      .eye-sclera {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      .eye-pupil {
+        position: relative;
+        width: 52px;
+        height: 52px;
+        background: #090e24;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.25s ease-out;
+
+        .eye-sparkle {
+          position: absolute;
+          background: #ffffff;
+          border-radius: 50%;
+
+          &.sparkle-large {
+            width: 18px;
+            height: 18px;
+            top: 7px;
+            left: 9px;
+          }
+
+          &.sparkle-small {
+            width: 8px;
+            height: 8px;
+            bottom: 10px;
+            right: 11px;
+          }
+        }
+      }
+    }
+  }
+
+  /* Cute Nose Dots */
+  .mascot-nose-dots {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+
+    .nose-dot {
+      width: 7px;
+      height: 7px;
+      background: #090e24;
+      border-radius: 50%;
+      display: inline-block;
+    }
+  }
+
+  /* Shy / Password Peek State */
+  &.mascot-shy {
+    .mascot-eyebrow.eyebrow-left {
+      transform: rotate(14deg) translateY(3px);
+    }
+    .mascot-eyebrow.eyebrow-right {
+      transform: rotate(-14deg) translateY(3px);
+    }
+    .eye-pupil {
+      transform: translateY(7px) scale(0.92);
+    }
+  }
+}
+
+/* Subtle Natural Blink Animation */
+@keyframes mascotBlink {
+  0%, 94%, 98%, 100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.08);
+  }
+}

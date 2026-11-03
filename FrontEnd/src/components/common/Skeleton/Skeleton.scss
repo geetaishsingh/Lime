@@ -1,0 +1,71 @@
+@use '../../../styles/variable.scss' as *;
+
+.lime-skeleton {
+  display: block;
+  background-color: var(--bg-elevated);
+  position: relative;
+  overflow: hidden;
+  border-radius: $radius-sm;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.06) 20%,
+      rgba(255, 255, 255, 0.12) 60%,
+      rgba(255, 255, 255, 0)
+    );
+    animation: lime-shimmer 1.8s infinite;
+  }
+
+  &.variant-circular {
+    border-radius: $radius-full;
+  }
+
+  &.variant-text {
+    height: 14px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+  }
+
+  &.variant-rectangular {
+    border-radius: $radius-md;
+  }
+
+  &.animation-pulse {
+    animation: lime-pulse 1.8s ease-in-out 0.5s infinite;
+  }
+}
+
+[data-theme="light"] .lime-skeleton::after {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.04) 20%,
+    rgba(0, 0, 0, 0.08) 60%,
+    rgba(0, 0, 0, 0)
+  );
+}
+
+@keyframes lime-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes lime-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}

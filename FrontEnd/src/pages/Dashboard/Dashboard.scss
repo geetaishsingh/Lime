@@ -1,0 +1,301 @@
+@use '../../styles/variable.scss' as *;
+
+.dashboard-container {
+  min-height: 100dvh;
+  display: flex;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+
+  .container {
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .dashboard-inner-container {
+    display: flex;
+    min-height: 100dvh;
+    position: relative;
+  }
+
+  /* Central Main Content Outlet */
+  .main-content-area {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* Mobile Headers and Bottom Nav (Hidden on Desktop) */
+.mobile-top-header {
+  display: none;
+}
+
+.mobile-bottom-nav {
+  display: none;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MOBILE VIEWPORT ADAPTATIONS (<= 640px)
+   ───────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .dashboard-inner-container {
+    flex-direction: column;
+    padding-bottom: 84px; /* Space for the floating dock nav */
+  }
+
+  /* Mobile Top Sticky Bar */
+  .mobile-top-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
+    position: sticky;
+    top: 0;
+    z-index: 40;
+
+    .mobile-logo-link {
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+
+      .mobile-brand-logo {
+        height: 28px;
+        width: auto;
+        max-width: 120px;
+        object-fit: contain;
+      }
+    }
+
+    .mobile-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      .mobile-header-btn {
+        color: var(--text-primary);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .mobile-unread-dot {
+          position: absolute;
+          top: -2px;
+          right: -2px;
+          width: 8px;
+          height: 8px;
+          background-color: var(--lime-accent);
+          border-radius: 50%;
+          border: 1.5px solid var(--bg-surface);
+        }
+      }
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     FLOATING CAPSULE DOCK (Matches Pinterest-style design in Image 4)
+     Full support for both Dark & Light Themes
+     ───────────────────────────────────────────────────────────── */
+  .mobile-bottom-nav.floating-dock-nav {
+    display: flex;
+    align-items: center;
+    position: fixed;
+    bottom: 14px;
+    left: 14px;
+    right: 14px;
+    max-width: 480px;
+    margin: 0 auto;
+    height: 62px;
+    padding: 0 10px 0 6px;
+    border-radius: $radius-full;
+    z-index: 60;
+    box-sizing: border-box;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+
+    /* Dark Theme (Default) */
+    background: rgba(18, 18, 20, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 4px 12px rgba(0, 0, 0, 0.45);
+
+    /* Light Theme */
+    :root[data-theme="light"] &,
+    [data-theme="light"] & {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Far-Left Circular Logo Badge */
+    .dock-brand-circle {
+      width: 46px;
+      height: 46px;
+      min-width: 46px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      margin-right: 4px;
+      transition: transform $transition-fast, box-shadow $transition-fast;
+
+      /* Dark */
+      background: #242428;
+      border: 1.5px solid rgba(132, 204, 22, 0.4);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+
+      /* Light */
+      :root[data-theme="light"] &,
+      [data-theme="light"] & {
+        background: #f4f4f5;
+        border: 1.5px solid rgba(101, 163, 13, 0.35);
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      &:active {
+        transform: scale(0.92);
+      }
+
+      .dock-brand-logo {
+        width: 26px;
+        height: 26px;
+        object-fit: contain;
+      }
+    }
+
+    /* Items Container */
+    .dock-nav-items {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      flex: 1;
+      height: 100%;
+    }
+
+    /* Single Navigation Item */
+    .dock-nav-item {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      text-decoration: none;
+      padding: 6px 10px;
+      border-radius: 20px;
+      transition: all $transition-fast;
+      color: #8e8e93;
+
+      :root[data-theme="light"] &,
+      [data-theme="light"] & {
+        color: #71717a;
+      }
+
+      .dock-icon {
+        transition: transform $transition-fast, color $transition-fast;
+      }
+
+      .dock-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+        line-height: 1;
+        transition: color $transition-fast;
+      }
+
+      /* Active dot underneath */
+      .dock-active-dot {
+        display: none;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background-color: var(--lime-accent);
+        margin-top: 1px;
+        box-shadow: 0 0 6px var(--lime-accent);
+      }
+
+      /* Active contour outline wave */
+      .dock-active-contour {
+        display: none;
+        position: absolute;
+        top: -4px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 28px;
+        height: 3px;
+        border-radius: 999px;
+        background: var(--lime-accent);
+        box-shadow: 0 0 8px var(--lime-accent);
+      }
+
+      /* Active State */
+      &.active {
+        color: var(--lime-accent);
+
+        .dock-icon {
+          transform: translateY(-1px) scale(1.06);
+          color: var(--lime-accent);
+        }
+
+        .dock-label {
+          color: var(--lime-accent);
+          font-weight: 700;
+        }
+
+        .dock-active-dot {
+          display: block;
+        }
+
+        .dock-active-contour {
+          display: block;
+        }
+      }
+
+      /* Unread notification badge for Inbox */
+      .dock-icon-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .dock-unread-badge {
+          position: absolute;
+          top: -2px;
+          right: -4px;
+          width: 7px;
+          height: 7px;
+          background: #ef4444;
+          border-radius: 50%;
+          border: 1.5px solid #141416;
+
+          :root[data-theme="light"] &,
+          [data-theme="light"] & {
+            border-color: #ffffff;
+          }
+        }
+      }
+
+      /* User Avatar Frame */
+      .dock-avatar-frame {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 1.5px solid currentColor;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .dock-avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      }
+    }
+  }
+}

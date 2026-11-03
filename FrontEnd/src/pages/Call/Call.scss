@@ -1,0 +1,363 @@
+// ==========================================================================
+// CALL.SCSS — RECREATED MODERN VIDEO & AUDIO CALL INTERFACE
+// ==========================================================================
+
+@use '../../styles/variable.scss' as *;
+
+.call-container {
+  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  background-color: #09090b;
+  overflow: hidden;
+  font-family: $font-main;
+  color: #fff;
+  user-select: none;
+
+  // Audio Call Specific Atmospheric Gradient
+  &.call-container--audio {
+    background: radial-gradient(ellipse at 50% 30%, #16260e 0%, #0c1407 50%, #09090b 100%);
+  }
+
+  // Floating Top Header
+  .call-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0) 100%);
+
+    @media (max-width: 640px) {
+      padding: 16px 18px;
+    }
+
+    .call-header-back-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: $radius-full;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all $transition-fast;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.22);
+        transform: scale(1.05);
+      }
+    }
+
+    .call-header-user {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+
+      .call-header-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #ffffff;
+        letter-spacing: -0.2px;
+      }
+
+      .call-header-status {
+        font-size: 13px;
+        font-weight: 500;
+        color: #a1a1aa;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        .status-indicator-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: $radius-full;
+
+          &.connected {
+            background-color: #22c55e;
+            box-shadow: 0 0 10px #22c55e;
+          }
+
+          &.connecting {
+            background-color: #eab308;
+            box-shadow: 0 0 10px #eab308;
+            animation: call-pulse-dot 1.2s infinite ease-in-out;
+          }
+        }
+      }
+    }
+  }
+
+  // Media Streams Area
+  .call-streams {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+
+    // Remote View (Full Screen Cover)
+    .call-stream-remote {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #09090b;
+
+      .call-video-element {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      // Audio Calling Card (or Waiting for Video state)
+      .call-audio-avatar-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        z-index: 10;
+        padding: 24px;
+        animation: call-fade-in 0.4s ease-out;
+
+        .call-avatar-pulse-container {
+          position: relative;
+          width: 156px;
+          height: 156px;
+          margin-bottom: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          .pulse-ring {
+            position: absolute;
+            inset: -12px;
+            border-radius: $radius-full;
+            border: 2px solid rgba(132, 204, 22, 0.4);
+            pointer-events: none;
+
+            &.ring-1 {
+              animation: call-pulse-ring 2.5s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+            }
+
+            &.ring-2 {
+              animation: call-pulse-ring 2.5s infinite cubic-bezier(0.215, 0.61, 0.355, 1) 0.8s;
+            }
+          }
+
+          .call-large-avatar {
+            width: 140px;
+            height: 140px;
+            border-radius: $radius-full;
+            object-fit: cover;
+            border: 4px solid var(--lime-accent, #84cc16);
+            box-shadow: 0 0 50px rgba(132, 204, 22, 0.35);
+            position: relative;
+            z-index: 2;
+          }
+        }
+
+        .call-caller-name {
+          font-size: 26px;
+          font-weight: 800;
+          color: #ffffff;
+          margin-bottom: 10px;
+          letter-spacing: -0.4px;
+
+          @media (max-width: 640px) {
+            font-size: 22px;
+          }
+        }
+
+        .call-status-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 18px;
+          border-radius: $radius-full;
+          background: rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #e4e4e7;
+          font-size: 13px;
+          font-weight: 600;
+
+          .status-indicator-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: $radius-full;
+
+            &.connected {
+              background-color: #22c55e;
+              box-shadow: 0 0 8px #22c55e;
+            }
+
+            &.connecting {
+              background-color: #eab308;
+              box-shadow: 0 0 8px #eab308;
+              animation: call-pulse-dot 1.2s infinite ease-in-out;
+            }
+          }
+        }
+      }
+    }
+
+    // Local Preview PiP (Picture in Picture)
+    .call-stream-local {
+      position: absolute;
+      top: 84px;
+      right: 24px;
+      width: 160px;
+      aspect-ratio: 9 / 16;
+      border-radius: $radius-lg;
+      overflow: hidden;
+      z-index: 25;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
+      border: 2px solid rgba(255, 255, 255, 0.22);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      background-color: #18181b;
+      transition: all $transition-base;
+
+      @media (max-width: 640px) {
+        width: 110px;
+        top: 76px;
+        right: 16px;
+        border-radius: $radius-md;
+      }
+
+      .call-video-element.local {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1); // mirror front camera
+        display: block;
+      }
+
+      .cam-off-overlay {
+        position: absolute;
+        inset: 0;
+        background-color: #18181b;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: #71717a;
+        font-size: 12px;
+        font-weight: 600;
+      }
+    }
+  }
+
+  // Floating Controls Dock
+  .call-controls {
+    position: absolute;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 12px 26px;
+    background: rgba(18, 18, 22, 0.8);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: $radius-full;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+
+    @media (max-width: 640px) {
+      bottom: 24px;
+      padding: 10px 20px;
+      gap: 14px;
+    }
+
+    .call-btn {
+      width: 52px;
+      height: 52px;
+      border-radius: $radius-full;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+      @media (max-width: 640px) {
+        width: 46px;
+        height: 46px;
+      }
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.24);
+        transform: scale(1.08);
+      }
+
+      &.call-btn--active {
+        background: rgba(239, 68, 68, 0.22);
+        border-color: rgba(239, 68, 68, 0.55);
+        color: #ef4444;
+      }
+
+      &.call-btn--hangup {
+        width: 58px;
+        height: 58px;
+        background: #ef4444;
+        border: none;
+        color: #ffffff;
+        box-shadow: 0 6px 24px rgba(239, 68, 68, 0.45);
+
+        @media (max-width: 640px) {
+          width: 52px;
+          height: 52px;
+        }
+
+        &:hover {
+          background: #dc2626;
+          transform: scale(1.1);
+          box-shadow: 0 8px 30px rgba(239, 68, 68, 0.65);
+        }
+      }
+    }
+  }
+}
+
+// Keyframe Animations
+@keyframes call-pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+@keyframes call-pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes call-fade-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}

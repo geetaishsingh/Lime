@@ -1,0 +1,31 @@
+@use '../../styles/variable.scss' as *;
+
+/* Feed Layout Grid */
+.feed-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 24px 20px;
+
+  .feed-inner-container {
+    display: flex;
+    gap: 32px;
+    width: 100%;
+    max-width: 1000px;
+
+    .central-feed-column {
+      flex: 1;
+      max-width: 630px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  .feed-container {
+    padding: 12px 8px;
+  }
+}

@@ -1,0 +1,96 @@
+@use '../../styles/variable.scss' as *;
+
+.posts-container-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  .feed-filter-tabs {
+    display: flex;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: $radius-lg;
+    padding: 4px;
+    gap: 4px;
+
+    .feed-tab-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 0;
+      border-radius: $radius-md;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: all $transition-fast;
+
+      &:hover {
+        color: var(--text-primary);
+        background-color: var(--bg-hover);
+      }
+
+      &.active {
+        color: var(--lime-accent);
+        background-color: var(--bg-elevated);
+        box-shadow: $shadow-sm;
+      }
+    }
+  }
+
+  .posts-feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .empty-feed-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: $radius-xl;
+    padding: 48px 24px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+
+    .empty-icon-wrap {
+      width: 72px;
+      height: 72px;
+      border-radius: $radius-full;
+      background-color: var(--lime-glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+
+    h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      max-width: 360px;
+      line-height: 1.5;
+    }
+
+    .empty-create-btn {
+      margin-top: 8px;
+      background-color: var(--lime-accent);
+      color: #09090b;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 10px 20px;
+      border-radius: $radius-md;
+      transition: opacity $transition-fast;
+
+      &:hover { opacity: 0.9; }
+    }
+  }
+}
