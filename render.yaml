@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: lime-frontend
+    runtime: static
+    rootDir: FrontEnd
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
