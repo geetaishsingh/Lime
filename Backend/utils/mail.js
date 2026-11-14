@@ -73,6 +73,46 @@ export const sendSignupOtpMail = async (to, otp) => {
   }
 };
 
+export const sendLoginOtpMail = async (to, otp) => {
+  if (!isEmailConfigured || !transporter) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Email delivery is not configured.");
+    }
+
+    console.log(`\n======================================================`);
+    console.log(`[LIME DEV EMAIL FALLBACK] LOGIN OTP for ${to}: ${otp}`);
+    console.log(`======================================================\n`);
+    return { success: true, method: "dev_fallback" };
+  }
+
+  try {
+    await transporter.sendMail({
+      from: `"Lime Security" <${emailUser}>`,
+      to,
+      subject: "Your Lime sign-in code",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
+          <h1 style="color: #10b981;">Lime sign-in</h1>
+          <p>Use this code to finish signing in to Lime:</p>
+          <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #10b981;">${otp}</p>
+          <p>This code expires in 10 minutes. If you did not try to sign in, you can ignore this email.</p>
+        </div>
+      `,
+    });
+    return { success: true, method: "smtp" };
+  } catch (error) {
+    console.error("[Email Error] Failed to send login OTP:", error.message);
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Could not send the sign-in code. Please try again.");
+    }
+
+    console.log(`\n======================================================`);
+    console.log(`[LIME DEV EMAIL FALLBACK] LOGIN OTP for ${to}: ${otp}`);
+    console.log(`======================================================\n`);
+    return { success: true, method: "dev_fallback" };
+  }
+};
+
 /**
  * Send Password Reset OTP
  */

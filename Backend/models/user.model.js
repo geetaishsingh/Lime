@@ -140,6 +140,25 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    loginOtpHash: {
+      type: String,
+    },
+    loginOtpExpires: {
+      type: Date,
+    },
+    loginOtpAttempts: {
+      type: Number,
+      default: 0,
+    },
+    loginOtpSentAt: {
+      type: Date,
+    },
+    loginOtpChallengeHash: {
+      type: String,
+    },
+    loginOtpChallengeExpires: {
+      type: Date,
+    },
     resetOtp: {
       type: String,
     },
