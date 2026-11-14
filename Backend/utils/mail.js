@@ -59,13 +59,19 @@ export const sendSignupOtpMail = async (to, otp) => {
       return { success: true, method: "smtp" };
     } catch (err) {
       console.error("[Email Error] Failed to send via SMTP:", err.message);
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("Could not send the verification code. Please try again.");
+      }
       console.log(`\n======================================================`);
       console.log(`[LIME DEV EMAIL FALLBACK] SIGNUP OTP for ${to}: ${otp}`);
       console.log(`======================================================\n`);
       return { success: true, method: "dev_fallback" };
     }
   } else {
-    // Development fallback
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Email delivery is not configured.");
+    }
+
     console.log(`\n======================================================`);
     console.log(`[LIME DEV EMAIL FALLBACK] SIGNUP OTP for ${to}: ${otp}`);
     console.log(`======================================================\n`);
@@ -144,12 +150,19 @@ export const sendOtpmail = async (to, otp) => {
       return { success: true, method: "smtp" };
     } catch (err) {
       console.error("[Email Error] Failed to send via SMTP:", err.message);
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("Could not send the password reset code. Please try again.");
+      }
       console.log(`\n======================================================`);
       console.log(`[LIME DEV EMAIL FALLBACK] RESET OTP for ${to}: ${otp}`);
       console.log(`======================================================\n`);
       return { success: true, method: "dev_fallback" };
     }
   } else {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Email delivery is not configured.");
+    }
+
     console.log(`\n======================================================`);
     console.log(`[LIME DEV EMAIL FALLBACK] RESET OTP for ${to}: ${otp}`);
     console.log(`======================================================\n`);

@@ -5,7 +5,7 @@ import {
   sendOtpmail,
   sendSignupOtpMail,
 } from "../utils/mail.js";
-import getToken, {
+import {
   generateAccessToken,
   generateRefreshToken,
   rotateRefreshToken,
@@ -15,7 +15,13 @@ import getToken, {
   getRefreshTokenCookieOptions,
 } from "../utils/token.js";
 import bcrypt from "bcryptjs";
-import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import {
+  createHmac,
+  randomBytes,
+  randomInt,
+  timingSafeEqual,
+} from "node:crypto";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 // Helper to sanitize user object returned to client
 const sanitizeUser = (user) => ({
@@ -36,7 +42,8 @@ const sanitizeUser = (user) => ({
   bookmarks: user.bookmarks || [],
 });
 
-const hashOtp = (otp) => createHash("sha256").update(otp).digest("hex");
+const hashOtp = (otp) =>
+  createHmac("sha256", getJwtSecret()).update(otp).digest("hex");
 
 const isSameHash = (firstHash, secondHash) => {
   if (!firstHash || !secondHash || firstHash.length !== secondHash.length) {
@@ -344,7 +351,8 @@ export const login = async (req, res) => {
 
     if (!user.password) {
       return res.status(400).json({
-        message: "This account uses Google or GitHub sign-in. Please continue with the social login option.",
+        message:
+          "This account uses Google or GitHub sign-in. Continue with that provider, or select Forgot password to set a password for this account.",
         success: false,
       });
     }
@@ -756,9 +764,19 @@ export const resetPassword = async (req, res) => {
 
     
     const hashPassword = await bcrypt.hash(newpassword, 10);
+    await revokeAllUserRefreshTokens(user._id);
     user.password = hashPassword;
     user.isOtpVerified = false;
+    user.loginOtpHash = undefined;
+    user.loginOtpExpires = undefined;
+    user.loginOtpAttempts = 0;
+    user.loginOtpSentAt = undefined;
+    user.loginOtpChallengeHash = undefined;
+    user.loginOtpChallengeExpires = undefined;
     await user.save();
+
+    res.clearCookie("token", getTokenCookieOptions());
+    res.clearCookie("refreshToken", getRefreshTokenCookieOptions());
 
     return res.status(200).json({
       message: "Password changed successfully! You can now log in.",

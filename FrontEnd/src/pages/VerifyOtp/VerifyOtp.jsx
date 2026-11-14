@@ -1,6 +1,6 @@
 import './VerifyOtp.scss';
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams, Link } from "react-router-dom";
 import axios from "axios";
 import { useDispatch } from "react-redux";
 import toast from "react-hot-toast";
@@ -10,12 +10,30 @@ import { serverUrl } from "../../config";
 import { setuser } from "../../store/user.slice";
 import authStorage from "../../utils/authStorage";
 
+const readSessionValue = (key) => {
+  try {
+    return sessionStorage.getItem(key) || "";
+  } catch (_error) {
+    return "";
+  }
+};
+
+const removeSessionValue = (key) => {
+  try {
+    sessionStorage.removeItem(key);
+  } catch (_error) {
+    // The active flow can complete without session storage.
+  }
+};
+
 const VerifyOtp = () => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const isLogin = searchParams.get("mode") === "login";
-  const fallbackEmail = sessionStorage.getItem("otp_email") || "";
-  const email = searchParams.get("email") || fallbackEmail;
-  const challengeId = sessionStorage.getItem("login_otp_challenge") || "";
+  const fallbackEmail = readSessionValue("otp_email");
+  const email = searchParams.get("email") || location.state?.email || fallbackEmail;
+  const challengeId =
+    location.state?.challengeId || readSessionValue("login_otp_challenge");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -109,8 +127,8 @@ const VerifyOtp = () => {
       );
 
       if (data?.success) {
-        sessionStorage.removeItem("login_otp_challenge");
-        sessionStorage.removeItem("otp_email");
+        removeSessionValue("login_otp_challenge");
+        removeSessionValue("otp_email");
         if (data.token || data.accessToken) {
           authStorage.setTokens(data.token || data.accessToken, data.refreshToken);
         }

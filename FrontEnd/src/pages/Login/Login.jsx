@@ -60,10 +60,16 @@ const Login = () => {
 
       if (data?.success) {
         if (data.requiresOtp && data.challengeId && data.email) {
-          sessionStorage.setItem("otp_email", data.email);
-          sessionStorage.setItem("login_otp_challenge", data.challengeId);
+          try {
+            sessionStorage.setItem("otp_email", data.email);
+            sessionStorage.setItem("login_otp_challenge", data.challengeId);
+          } catch (_storageError) {
+            // Router state keeps the active verification flow usable in restricted storage modes.
+          }
           toast.success(data.message || "Sign-in code sent to your email.");
-          navigate("/verify-otp?mode=login");
+          navigate("/verify-otp?mode=login", {
+            state: { email: data.email, challengeId: data.challengeId },
+          });
           return;
         }
 

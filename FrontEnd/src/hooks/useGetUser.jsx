@@ -2,7 +2,12 @@ import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import axios from "axios";
 import { serverUrl } from "../config";
-import { setAuthLoading, setuser, setAuthState, setNetworkError } from "../store/user.slice.js";
+import {
+  setAuthLoading,
+  setuser,
+  setAuthState,
+  setNetworkError,
+} from "../store/user.slice.js";
 import authStorage from "../utils/authStorage.js";
 
 const useGetUser = () => {
@@ -12,21 +17,8 @@ const useGetUser = () => {
     let isMounted = true;
 
     const verifySession = async () => {
-      // 1. Capture OAuth tokens from URL if arriving from Google/GitHub callback
       authStorage.extractAndStoreOAuthTokens();
-
-      const hasToken = authStorage.hasAuth();
       const cachedUser = authStorage.getCachedUser();
-
-      console.info(`[Lime Auth] App initialization - token available: ${hasToken}`);
-
-      if (!hasToken) {
-        // No tokens stored locally or in session
-        if (isMounted) {
-          dispatch(setuser(null));
-        }
-        return;
-      }
 
       // If cached profile exists, pre-load it to avoid blank/loading flash
       if (cachedUser && isMounted) {
@@ -55,12 +47,15 @@ const useGetUser = () => {
           return;
         }
 
-        if (data && data.success === false) {
+        if (data?.success === false) {
           console.warn(`[Lime Auth] Verification returned failure payload [reqId=${reqId}]`);
           authStorage.clearTokens();
           authStorage.clearCachedUser();
           dispatch(setuser(null));
+          return;
         }
+
+        throw new Error("Session verification returned an invalid response.");
       } catch (error) {
         if (!isMounted) return;
 
@@ -69,7 +64,6 @@ const useGetUser = () => {
           `[Lime Auth] Authentication verification request failed [status=${status || "network_timeout"}] [reqId=${reqId}]`
         );
 
-        // Genuine authentication rejection (refresh also failed)
         if (status === 401 || status === 403) {
           console.info("[Lime Auth] Redirect reason: session genuinely invalid / token expired");
           authStorage.clearTokens();
@@ -78,8 +72,7 @@ const useGetUser = () => {
           return;
         }
 
-        // Network error, timeout, 500, or 503 (Render cold start)
-        // CRITICAL: DO NOT DESTROY USER SESSION ON NETWORK/SERVER BLIPS!
+        // Keep the cached profile when the API is temporarily unavailable.
         console.info("[Lime Auth] Network/server issue encountered. Preserving session.");
         if (cachedUser) {
           // Restore cached user and exit loading state so app remains usable offline

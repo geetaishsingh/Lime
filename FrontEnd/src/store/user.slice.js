@@ -1,18 +1,17 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-const savedTheme =
-  typeof window !== "undefined"
-    ? localStorage.getItem("lime_theme") || "dark"
-    : "dark";
-
-let initialUser = null;
-let hasStoredAuth = false;
+let savedTheme = "dark";
 if (typeof window !== "undefined") {
   try {
-    hasStoredAuth = Boolean(
-      localStorage.getItem("lime_access_token") ||
-      localStorage.getItem("lime_refresh_token")
-    );
+    savedTheme = window.localStorage.getItem("lime_theme") || "dark";
+  } catch (_error) {
+    savedTheme = "dark";
+  }
+}
+
+let initialUser = null;
+if (typeof window !== "undefined") {
+  try {
     const cached = localStorage.getItem("lime_cached_user");
     initialUser = cached ? JSON.parse(cached) : null;
   } catch (_e) {
@@ -22,7 +21,7 @@ if (typeof window !== "undefined") {
 
 const initialState = {
   user: initialUser,
-  loading: hasStoredAuth ? true : false,
+  loading: true,
   networkError: false,
   theme: savedTheme,
   posts: [],
