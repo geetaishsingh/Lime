@@ -1,6 +1,10 @@
 import User from "../models/user.model.js";
 import PendingSignup from "../models/pendingSignup.model.js";
-import { sendOtpmail, sendSignupOtpMail } from "../utils/mail.js";
+import {
+  sendLoginOtpMail,
+  sendOtpmail,
+  sendSignupOtpMail,
+} from "../utils/mail.js";
 import getToken, {
   generateAccessToken,
   generateRefreshToken,
@@ -11,7 +15,7 @@ import getToken, {
   getRefreshTokenCookieOptions,
 } from "../utils/token.js";
 import bcrypt from "bcryptjs";
-import { randomInt } from "node:crypto";
+import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 
 // Helper to sanitize user object returned to client
 const sanitizeUser = (user) => ({
@@ -31,6 +35,15 @@ const sanitizeUser = (user) => ({
   posts: user.posts || [],
   bookmarks: user.bookmarks || [],
 });
+
+const hashOtp = (otp) => createHash("sha256").update(otp).digest("hex");
+
+const isSameHash = (firstHash, secondHash) => {
+  if (!firstHash || !secondHash || firstHash.length !== secondHash.length) {
+    return false;
+  }
+  return timingSafeEqual(Buffer.from(firstHash, "hex"), Buffer.from(secondHash, "hex"));
+};
 
 /**
  * Step 1: User Registration
@@ -344,13 +357,103 @@ export const login = async (req, res) => {
       });
     }
 
+    const otp = randomInt(100000, 1000000).toString();
+    const challengeId = randomBytes(32).toString("hex");
+    const now = new Date();
+    user.loginOtpHash = hashOtp(otp);
+    user.loginOtpExpires = new Date(now.getTime() + 10 * 60 * 1000);
+    user.loginOtpAttempts = 0;
+    user.loginOtpSentAt = now;
+    user.loginOtpChallengeHash = hashOtp(challengeId);
+    user.loginOtpChallengeExpires = new Date(now.getTime() + 10 * 60 * 1000);
+    await user.save();
+
+    let delivery;
+    try {
+      delivery = await sendLoginOtpMail(user.email, otp);
+    } catch (emailError) {
+      user.loginOtpHash = undefined;
+      user.loginOtpExpires = undefined;
+      user.loginOtpSentAt = undefined;
+      user.loginOtpChallengeHash = undefined;
+      user.loginOtpChallengeExpires = undefined;
+      await user.save();
+      return res.status(503).json({
+        message: emailError.message,
+        success: false,
+      });
+    }
+
+    return res.status(200).json({
+      message: delivery.method === "smtp"
+        ? `A sign-in code was sent to ${user.email}.`
+        : "Email is not configured; the sign-in code was printed to the backend logs.",
+      success: true,
+      requiresOtp: true,
+      email: user.email,
+      challengeId,
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({ message: `Login error: ${error.message}`, success: false });
+  }
+};
+
+export const verifyLoginOtp = async (req, res) => {
+  try {
+    const { challengeId, otp } = req.body;
+    if (!challengeId || !otp) {
+      return res.status(400).json({
+        message: "Sign-in challenge and verification code are required.",
+        success: false,
+      });
+    }
+
+    const user = await User.findOne({
+      loginOtpChallengeHash: hashOtp(challengeId),
+    });
+    if (!user || !user.loginOtpChallengeExpires || user.loginOtpChallengeExpires < new Date()) {
+      return res.status(400).json({
+        message: "This sign-in code has expired. Please sign in again.",
+        success: false,
+      });
+    }
+
+    if (!user.loginOtpExpires || user.loginOtpExpires < new Date()) {
+      return res.status(400).json({
+        message: "Sign-in code expired. Request a new one.",
+        success: false,
+      });
+    }
+
+    if ((user.loginOtpAttempts || 0) >= 5) {
+      return res.status(429).json({
+        message: "Too many incorrect codes. Request a new sign-in code.",
+        success: false,
+      });
+    }
+
+    if (!isSameHash(user.loginOtpHash, hashOtp(otp.toString().trim()))) {
+      user.loginOtpAttempts = (user.loginOtpAttempts || 0) + 1;
+      await user.save();
+      return res.status(400).json({
+        message: `Incorrect code. ${5 - user.loginOtpAttempts} attempts remaining.`,
+        success: false,
+      });
+    }
+
+    user.loginOtpHash = undefined;
+    user.loginOtpExpires = undefined;
+    user.loginOtpAttempts = 0;
+    user.loginOtpSentAt = undefined;
+    user.loginOtpChallengeHash = undefined;
+    user.loginOtpChallengeExpires = undefined;
+    await user.save();
+
     const token = generateAccessToken(user._id);
     const refreshToken = await generateRefreshToken(user._id);
-
     res.cookie("token", token, getTokenCookieOptions());
     res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
-
-    console.info(`[Lime Auth] Login successful [userId=${user._id}]`);
 
     return res.status(200).json({
       message: `Welcome back, @${user.username}!`,
@@ -361,8 +464,87 @@ export const login = async (req, res) => {
       refreshToken,
     });
   } catch (error) {
-    console.error("Login error:", error);
-    return res.status(500).json({ message: `Login error: ${error.message}`, success: false });
+    console.error("Verify login OTP error:", error);
+    return res.status(500).json({
+      message: `Could not verify sign-in code: ${error.message}`,
+      success: false,
+    });
+  }
+};
+
+export const resendLoginOtp = async (req, res) => {
+  try {
+    const { challengeId } = req.body;
+    if (!challengeId) {
+      return res.status(400).json({
+        message: "Sign-in challenge is missing. Please sign in again.",
+        success: false,
+      });
+    }
+
+    const user = await User.findOne({
+      loginOtpChallengeHash: hashOtp(challengeId),
+    });
+    if (!user || !user.loginOtpChallengeExpires || user.loginOtpChallengeExpires < new Date()) {
+      return res.status(400).json({
+        message: "This sign-in session has expired. Please sign in again.",
+        success: false,
+      });
+    }
+
+    const cooldownMs = 60 * 1000;
+    const remainingMs = cooldownMs - (Date.now() - new Date(user.loginOtpSentAt || 0).getTime());
+    if (remainingMs > 0) {
+      return res.status(429).json({
+        message: "Please wait before requesting another code.",
+        retryAfterSeconds: Math.ceil(remainingMs / 1000),
+        success: false,
+      });
+    }
+
+    const otp = randomInt(100000, 1000000).toString();
+    const previousOtp = {
+      hash: user.loginOtpHash,
+      expires: user.loginOtpExpires,
+      attempts: user.loginOtpAttempts,
+      sentAt: user.loginOtpSentAt,
+      challengeExpires: user.loginOtpChallengeExpires,
+    };
+    user.loginOtpHash = hashOtp(otp);
+    user.loginOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    user.loginOtpAttempts = 0;
+    user.loginOtpSentAt = new Date();
+    user.loginOtpChallengeExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    let delivery;
+    try {
+      delivery = await sendLoginOtpMail(user.email, otp);
+    } catch (emailError) {
+      user.loginOtpHash = previousOtp.hash;
+      user.loginOtpExpires = previousOtp.expires;
+      user.loginOtpAttempts = previousOtp.attempts;
+      user.loginOtpSentAt = previousOtp.sentAt;
+      user.loginOtpChallengeExpires = previousOtp.challengeExpires;
+      await user.save();
+      return res.status(503).json({
+        message: emailError.message,
+        success: false,
+      });
+    }
+
+    return res.status(200).json({
+      message: delivery.method === "smtp"
+        ? `A new sign-in code was sent to ${user.email}.`
+        : "Email is not configured; the new sign-in code was printed to the backend logs.",
+      success: true,
+    });
+  } catch (error) {
+    console.error("Resend login OTP error:", error);
+    return res.status(500).json({
+      message: `Could not resend sign-in code: ${error.message}`,
+      success: false,
+    });
   }
 };
 

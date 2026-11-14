@@ -59,6 +59,14 @@ const Login = () => {
       );
 
       if (data?.success) {
+        if (data.requiresOtp && data.challengeId && data.email) {
+          sessionStorage.setItem("otp_email", data.email);
+          sessionStorage.setItem("login_otp_challenge", data.challengeId);
+          toast.success(data.message || "Sign-in code sent to your email.");
+          navigate("/verify-otp?mode=login");
+          return;
+        }
+
         if (data.token || data.accessToken) {
           authStorage.setTokens(data.token || data.accessToken, data.refreshToken);
         }
