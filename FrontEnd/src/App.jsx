@@ -10,12 +10,12 @@ import useGetPosts from "./hooks/useGetPosts";
 import useGetUserPosts from "./hooks/useGetUserPosts";
 import useGetMyLikes from "./hooks/useGetMyLikes";
 import useGetMySuggestions from "./hooks/useGetMySuggestions.jsx";
+import IncomingCallModal from './components/IncomingCallModal/IncomingCallModal.jsx'
 import { socket } from "./socket.js";
 import {
   addNotification,
   setUnreadMessagesCount,
 } from "./store/user.slice";
-import IncomingCallModal from "./components/IncomingCallModal";
 import { serverUrl } from "./config.js";
 
 export { serverUrl };
@@ -142,7 +142,7 @@ const App = () => {
   return (
     <div className={`lime-app theme-${theme}`}>
       <Outlet />
-      <IncomingCallModal />
+      <IncomingCallModal/>
       <Toaster
         position="top-right"
         toastOptions={{

@@ -1,0 +1,34 @@
+
+{
+  "name": "Lime",
+  "short_name": "Lime",
+  "description": "Lime Progressive Web Application",
+
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+
+  "display": "standalone",
+  "orientation": "any",
+
+  "theme_color": "#8936FF",
+  "background_color": "#2EC6FE",
+
+  "dir": "auto",
+  "lang": "en",
+
+  "icons": [
+    {
+      "src": "/icons/icon512_maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon512_rounded.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
