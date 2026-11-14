@@ -59,13 +59,14 @@ const App = () => {
 
   // Manage socket connection & real-time events
   useEffect(() => {
-    socket.connect();
+    if (!user?._id) {
+      socket.disconnect();
+      return;
+    }
 
-    socket.on("connect", () => {
-      if (user?._id) {
-        socket.emit("identity", { userId: user._id });
-      }
-    });
+    const handleConnect = () => {
+      socket.emit("identity", { userId: user._id });
+    };
 
     // Real-time unread messages count listener (emitted from server)
     const handleUnreadCount = ({ count }) => {
@@ -73,7 +74,6 @@ const App = () => {
         dispatch(setUnreadMessagesCount(count));
       }
     };
-    socket.on("unreadMessageCount", handleUnreadCount);
 
     // Sync unread count whenever an incoming message arrives
     const handleNewMessage = (msg) => {
@@ -88,10 +88,9 @@ const App = () => {
           .catch(() => {});
       }
     };
-    socket.on("newMessage", handleNewMessage);
 
     // Real-time notifications listener
-    socket.on("notification", (notif) => {
+    const handleNotification = (notif) => {
       dispatch(addNotification(notif));
       const senderName = notif.sender?.username || "Someone";
       toast(
@@ -121,20 +120,26 @@ const App = () => {
           },
         }
       );
-    });
+    };
+
+    socket.connect();
+    socket.on("connect", handleConnect);
+    socket.on("unreadMessageCount", handleUnreadCount);
+    socket.on("newMessage", handleNewMessage);
+    socket.on("notification", handleNotification);
 
     return () => {
-      socket.off("connect");
-      socket.off("notification");
+      socket.off("connect", handleConnect);
+      socket.off("notification", handleNotification);
       socket.off("unreadMessageCount", handleUnreadCount);
       socket.off("newMessage", handleNewMessage);
       socket.disconnect();
     };
   }, [dispatch, user?._id, theme]);
 
-  // Identify user on socket whenever user ID changes
+  // Identify user on socket whenever user ID changes and the socket is already connected
   useEffect(() => {
-    if (user?._id) {
+    if (user?._id && socket.connected) {
       socket.emit("identity", { userId: user._id });
     }
   }, [user?._id]);
