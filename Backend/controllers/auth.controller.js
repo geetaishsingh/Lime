@@ -1,7 +1,15 @@
 import User from "../models/user.model.js";
 import PendingSignup from "../models/pendingSignup.model.js";
 import { sendOtpmail, sendSignupOtpMail } from "../utils/mail.js";
-import getToken, { getTokenCookieOptions } from "../utils/token.js";
+import getToken, {
+  generateAccessToken,
+  generateRefreshToken,
+  rotateRefreshToken,
+  revokeRefreshToken,
+  revokeAllUserRefreshTokens,
+  getTokenCookieOptions,
+  getRefreshTokenCookieOptions,
+} from "../utils/token.js";
 import bcrypt from "bcryptjs";
 import { randomInt } from "node:crypto";
 
@@ -216,13 +224,20 @@ export const verifySignupOtp = async (req, res) => {
       await user.save();
     }
 
-    const token = await getToken(user._id);
+    const token = generateAccessToken(user._id);
+    const refreshToken = await generateRefreshToken(user._id);
+
     res.cookie("token", token, getTokenCookieOptions());
+    res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
+
+    console.info(`[Lime Auth] Signup verification successful [userId=${user._id}]`);
 
     return res.status(200).json({
       message: "Account verified successfully! Welcome to Lime.",
       user: sanitizeUser(user),
       token,
+      accessToken: token,
+      refreshToken,
       success: true,
     });
   } catch (error) {
@@ -314,6 +329,13 @@ export const login = async (req, res) => {
       });
     }
 
+    if (!user.password) {
+      return res.status(400).json({
+        message: "This account uses Google or GitHub sign-in. Please continue with the social login option.",
+        success: false,
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({
@@ -322,15 +344,21 @@ export const login = async (req, res) => {
       });
     }
 
-    // Direct password login without OTP requirement (preserved for signup and password recovery)
-    const token = await getToken(user._id);
+    const token = generateAccessToken(user._id);
+    const refreshToken = await generateRefreshToken(user._id);
+
     res.cookie("token", token, getTokenCookieOptions());
+    res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
+
+    console.info(`[Lime Auth] Login successful [userId=${user._id}]`);
 
     return res.status(200).json({
       message: `Welcome back, @${user.username}!`,
       success: true,
       user: sanitizeUser(user),
       token,
+      accessToken: token,
+      refreshToken,
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -343,10 +371,80 @@ export const login = async (req, res) => {
  */
 export const logout = async (req, res) => {
   try {
+    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+    if (refreshToken) {
+      await revokeRefreshToken(refreshToken);
+    }
+    if (req.userId) {
+      await revokeAllUserRefreshTokens(req.userId);
+    }
     res.clearCookie("token", getTokenCookieOptions());
+    res.clearCookie("refreshToken", getRefreshTokenCookieOptions());
+    console.info("[Lime Auth] Logout executed successfully");
     return res.status(200).json({ message: "Logged out successfully", success: true });
   } catch (error) {
     return res.status(500).json({ message: `Logout error: ${error.message}`, success: false });
+  }
+};
+
+/**
+ * Token Refresh Controller
+ */
+export const refreshTokenController = async (req, res) => {
+  try {
+    const rawRefreshToken =
+      req.cookies?.refreshToken ||
+      req.body?.refreshToken ||
+      req.headers["x-refresh-token"];
+
+    if (!rawRefreshToken) {
+      console.info("[Lime Auth] Refresh request: FAILED (no refresh token provided)");
+      return res.status(401).json({
+        message: "Refresh token required.",
+        code: "REFRESH_TOKEN_REQUIRED",
+        success: false,
+      });
+    }
+
+    const rotated = await rotateRefreshToken(rawRefreshToken);
+    if (!rotated) {
+      console.warn("[Lime Auth] Refresh request: FAILED (invalid or revoked refresh token)");
+      res.clearCookie("token", getTokenCookieOptions());
+      res.clearCookie("refreshToken", getRefreshTokenCookieOptions());
+      return res.status(401).json({
+        message: "Invalid or expired session. Please sign in again.",
+        code: "REFRESH_TOKEN_INVALID",
+        success: false,
+      });
+    }
+
+    const user = await User.findById(rotated.userId).select("-password -signupOtp -resetOtp");
+    if (!user) {
+      return res.status(401).json({
+        message: "User account no longer exists.",
+        code: "USER_NOT_FOUND",
+        success: false,
+      });
+    }
+
+    res.cookie("token", rotated.accessToken, getTokenCookieOptions());
+    res.cookie("refreshToken", rotated.refreshToken, getRefreshTokenCookieOptions());
+
+    console.info(`[Lime Auth] Refresh request: SUCCESS [userId=${user._id}]`);
+
+    return res.status(200).json({
+      success: true,
+      token: rotated.accessToken,
+      accessToken: rotated.accessToken,
+      refreshToken: rotated.refreshToken,
+      user: sanitizeUser(user),
+    });
+  } catch (error) {
+    console.error("[Lime Auth] Refresh request error:", error.message);
+    return res.status(500).json({
+      message: `Token refresh error: ${error.message}`,
+      success: false,
+    });
   }
 };
 
@@ -497,11 +595,16 @@ export const googleCallback = async (req, res) => {
     if (!user) {
       return res.redirect(`${clientUrl}/login`);
     }
-    const token = await getToken(user._id);
+    const token = generateAccessToken(user._id);
+    const refreshToken = await generateRefreshToken(user._id);
+
     res.cookie("token", token, getTokenCookieOptions());
-    return res.redirect(`${clientUrl}/`);
+    res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
+
+    console.info(`[Lime Auth] Google OAuth login successful [userId=${user._id}]`);
+    return res.redirect(`${clientUrl}/#token=${token}&refreshToken=${refreshToken}`);
   } catch (error) {
-    console.error("Google Callback Error:", error);
+    console.error("[Lime Auth] Google Callback Error:", error);
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
     return res.redirect(`${clientUrl}/login`);
   }
@@ -514,11 +617,16 @@ export const githubCallback = async (req, res) => {
     if (!user) {
       return res.redirect(`${clientUrl}/login`);
     }
-    const token = await getToken(user._id);
+    const token = generateAccessToken(user._id);
+    const refreshToken = await generateRefreshToken(user._id);
+
     res.cookie("token", token, getTokenCookieOptions());
-    return res.redirect(`${clientUrl}/`);
+    res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
+
+    console.info(`[Lime Auth] GitHub OAuth login successful [userId=${user._id}]`);
+    return res.redirect(`${clientUrl}/#token=${token}&refreshToken=${refreshToken}`);
   } catch (error) {
-    console.error("GitHub Callback Error:", error);
+    console.error("[Lime Auth] GitHub Callback Error:", error);
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
     return res.redirect(`${clientUrl}/login`);
   }

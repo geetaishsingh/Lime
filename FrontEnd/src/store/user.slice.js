@@ -5,14 +5,30 @@ const savedTheme =
     ? localStorage.getItem("lime_theme") || "dark"
     : "dark";
 
+let initialUser = null;
+let hasStoredAuth = false;
+if (typeof window !== "undefined") {
+  try {
+    hasStoredAuth = Boolean(
+      localStorage.getItem("lime_access_token") ||
+      localStorage.getItem("lime_refresh_token")
+    );
+    const cached = localStorage.getItem("lime_cached_user");
+    initialUser = cached ? JSON.parse(cached) : null;
+  } catch (_e) {
+    initialUser = null;
+  }
+}
+
 const initialState = {
-  user: null,
-  loading: true,
+  user: initialUser,
+  loading: hasStoredAuth ? true : false,
+  networkError: false,
   theme: savedTheme,
   posts: [],
   userPosts: [],
   myLikes: [],
-  myBookmarks: [],
+  myBookmarks: initialUser?.bookmarks || [],
   mySuggestions: [],
   notifications: [],
   unreadNotificationsCount: 0,
@@ -27,6 +43,7 @@ const userSlice = createSlice({
     setuser: (state, action) => {
       state.user = action.payload || null;
       state.loading = false;
+      state.networkError = false;
       if (action.payload && action.payload.bookmarks) {
         state.myBookmarks = action.payload.bookmarks;
       } else if (!action.payload) {
@@ -214,10 +231,15 @@ const userSlice = createSlice({
     decrementUnreadMessagesCount: (state) => {
       state.unreadMessagesCount = Math.max(0, state.unreadMessagesCount - 1);
     },
+    setNetworkError: (state, action) => {
+      state.networkError = Boolean(action.payload);
+      state.loading = false;
+    },
     // Reset on logout
     resetUserState: (state) => {
       state.user = null;
       state.loading = false;
+      state.networkError = false;
       state.posts = [];
       state.userPosts = [];
       state.myLikes = [];
@@ -247,6 +269,7 @@ export const {
   setMyLikes,
   setAuthLoading,
   setAuthState,
+  setNetworkError,
   addLiked,
   removeLiked,
   addBookmark,

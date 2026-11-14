@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { serverUrl } from "../../config";
 import { resetUserState, toggleTheme } from "../../store/user.slice";
+import authStorage from "../../utils/authStorage";
 import limeLogoFull from "../../assets/lime-logo-full.png";
 import limeLogoIcon from "../../assets/lime-logo-icon.png";
 import limeLogoFullLight from "../../assets/lime-logo-full-light.png";
@@ -38,14 +39,19 @@ export const LeftSidebar = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.get(`${serverUrl}/api/auth/logout`, {
-        withCredentials: true,
-      });
+      const refreshToken = authStorage.getRefreshToken();
+      await axios.post(
+        `${serverUrl}/api/auth/logout`,
+        { refreshToken },
+        { withCredentials: true }
+      );
+    } catch (_error) {
+      // Continue client cleanup even if network fails
+    } finally {
+      authStorage.clearTokens();
+      authStorage.clearCachedUser();
       dispatch(resetUserState());
       toast.success("Logged out successfully");
-      navigate("/login");
-    } catch (_error) {
-      dispatch(resetUserState());
       navigate("/login");
     }
   };

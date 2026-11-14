@@ -11,6 +11,7 @@ import {
   resendSignupOtp,
   googleCallback,
   githubCallback,
+  refreshTokenController,
 } from "../controllers/auth.controller.js";
 
 const authRoute = express.Router();
@@ -20,6 +21,7 @@ authRoute.post("/register", register);
 authRoute.post("/verify-signup-otp", verifySignupOtp);
 authRoute.post("/resend-signup-otp", resendSignupOtp);
 authRoute.post("/login", login);
+authRoute.post("/refresh", refreshTokenController);
 authRoute.get("/logout", logout);
 authRoute.post("/logout", logout);
 authRoute.post("/send-otp", sendOtp);

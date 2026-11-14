@@ -1,7 +1,7 @@
 import './Messages.scss';
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { MessageSquare } from "lucide-react";
 import { serverUrl } from "../../config";
@@ -12,6 +12,7 @@ import { socket } from "../../socket";
 const MessagePage = () => {
   const { user } = useSelector((state) => state.user);
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [conversations, setConversations] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
@@ -46,6 +47,8 @@ const MessagePage = () => {
               setConversations((prev) => [convData.conversation, ...prev]);
             }
           }
+        } else {
+          setSelectedChat(null);
         }
       }
     } catch (err) {
@@ -85,86 +88,53 @@ const MessagePage = () => {
   };
 
   return (
-    <div className="lime-mobile-shell">
-      <div className="lime-mobile-status-bar">
-        <span className="status-time">7:45</span>
-        <div className="status-icons">
-          <span className="wifi-dot" />
-          <span className="signal-bars" />
-          <span className="battery-pill"><span /></span>
-        </div>
-      </div>
+    <div className="messages-layout-container">
+      {/* Left Chat List Panel */}
+      <ChatList
+        className={selectedChat ? "mobile-hidden" : ""}
+        conversations={conversations}
+        setConversations={setConversations}
+        currentUser={user}
+        selectedChat={selectedChat}
+        setSelectedChat={(conv) => {
+          setSelectedChat(conv);
+          const other = getOtherUser(conv);
+          if (other?._id) {
+            navigate(`/messages/${other._id}`);
+          }
+        }}
+        onlineUsers={onlineUsers}
+        getOtherUser={getOtherUser}
+      />
 
-      <div className="lime-mobile-address-bar">
-        <div className="address-home" />
-        <span className="address-url">lime-oeee.onrender.com/me</span>
-        <span className="address-badge">11</span>
-        <button className="address-menu" aria-label="More options">⋮</button>
-      </div>
-
-      <div className="messages-layout-container">
-        {/* Left Chat List Panel */}
-        <ChatList
-          className={selectedChat ? "mobile-hidden" : ""}
-          conversations={conversations}
-          setConversations={setConversations}
+      {/* Right Chat Box Panel */}
+      {selectedChat ? (
+        <ChatBox
+          key={selectedChat._id}
+          conversation={selectedChat}
           currentUser={user}
-          selectedChat={selectedChat}
-          setSelectedChat={setSelectedChat}
+          otherUser={getOtherUser(selectedChat)}
           onlineUsers={onlineUsers}
-          getOtherUser={getOtherUser}
+          onBack={() => {
+            setSelectedChat(null);
+            navigate("/messages");
+          }}
         />
-
-        {/* Right Chat Box Panel */}
-        {selectedChat ? (
-          <ChatBox
-            key={selectedChat._id}
-            conversation={selectedChat}
-            currentUser={user}
-            otherUser={getOtherUser(selectedChat)}
-            onlineUsers={onlineUsers}
-            onBack={() => setSelectedChat(null)}
-          />
-        ) : (
-          <div className="no-chat-selected-screen">
-            <div className="no-chat-inner">
-              <div className="no-chat-icon-circle">
-                <MessageSquare size={48} color="#84cc16" />
-              </div>
-              <h2>Your Direct Messages</h2>
-              <p>
-                Send private photos and messages to a friend or creator on Lime.
-              </p>
+      ) : (
+        <div className="no-chat-selected-screen">
+          <div className="no-chat-inner">
+            <div className="no-chat-icon-circle">
+              <MessageSquare size={48} color="#84cc16" />
             </div>
+            <h2>Your Direct Messages</h2>
+            <p>
+              Send private photos and messages to a friend or creator on Lime.
+            </p>
           </div>
-        )}
-      </div>
-
-      <nav className="lime-mobile-footer-nav" aria-label="Bottom navigation">
-        <button className="nav-item active">
-          <span className="nav-icon home" />
-          <span>Home</span>
-        </button>
-        <button className="nav-item">
-          <span className="nav-icon search" />
-          <span>Search</span>
-        </button>
-        <button className="nav-item create">
-          <span className="nav-icon plus" />
-          <span>Create</span>
-        </button>
-        <button className="nav-item">
-          <span className="nav-icon inbox" />
-          <span>Inbox</span>
-        </button>
-        <button className="nav-item">
-          <span className="nav-icon bookmark" />
-          <span>Saved</span>
-        </button>
-      </nav>
+        </div>
+      )}
     </div>
   );
 };
 
 export default MessagePage;
-

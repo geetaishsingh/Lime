@@ -1,4 +1,5 @@
-import { createRoot } from 'react-dom/client'
+import './services/api.js';
+import { createRoot } from 'react-dom/client';
 import routes from './routes/index.jsx';
 import { RouterProvider } from 'react-router-dom';
 import store from './store/store.js';
