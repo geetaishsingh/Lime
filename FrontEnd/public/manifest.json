@@ -11,8 +11,8 @@
   "display": "standalone",
   "orientation": "any",
 
-  "theme_color": "#8936FF",
-  "background_color": "#2EC6FE",
+  "theme_color": "#9DE402",
+  "background_color": "#9DE402",
 
   "dir": "auto",
   "lang": "en",
