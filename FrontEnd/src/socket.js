@@ -9,4 +9,8 @@ export const socket = io(serverUrl, {
   transports: ["websocket", "polling"],
 });
 
+socket.on("presence-ping", () => {
+  socket.emit("presence-heartbeat");
+});
+
 export default socket;

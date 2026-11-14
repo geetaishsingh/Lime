@@ -205,7 +205,7 @@ const Register = () => {
                 ) : (
                   <>
                     <span className="desktop-btn-text">Sign Up with Email</span>
-                    <span className="mobile-btn-text">Let&apos;s Plopp!</span>
+                    <span className="mobile-btn-text">Let&apos;s go!</span>
                   </>
                 )}
               </button>

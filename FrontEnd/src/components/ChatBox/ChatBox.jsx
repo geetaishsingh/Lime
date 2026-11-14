@@ -49,6 +49,21 @@ const formatMessageTime = (dateStr) => {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
+const formatLastSeen = (dateStr) => {
+  if (!dateStr) return "Offline";
+
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMinutes < 1) return "just now";
+  if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  if (diffDays === 1) return "Yesterday";
+  return `${diffDays} days ago`;
+};
+
 const ChatBox = ({
   conversation: _conversation,
   currentUser,
@@ -306,6 +321,11 @@ const ChatBox = ({
   };
 
   const isOnline = onlineUsers.includes(otherUser?._id?.toString());
+  const presenceText = isOnline
+    ? "Active now"
+    : otherUser?.lastSeen
+      ? `Last seen ${formatLastSeen(otherUser.lastSeen)}`
+      : "Offline";
   const canDeleteForEveryone =
     selectedMessages.length > 0 &&
     selectedMessages.every((id) => {
@@ -337,11 +357,7 @@ const ChatBox = ({
           <div className="chat-recipient-text">
             <h3>{otherUser?.name || `@${otherUser?.username}`}</h3>
             <span className="chat-recipient-status">
-              {isOnline ? "Active now" : "Offline"}
-              <span className="chat-expiry-dot">•</span>
-              <span className="chat-expiry-badge" title="Messages, photos, and videos expire 24 hours after being sent">
-                <Clock size={11} /> 24h
-              </span>
+              {presenceText}
             </span>
           </div>
         </div>
