@@ -1,13 +1,10 @@
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import RefreshToken from "../models/refreshToken.model.js";
+import { getJwtSecret } from "./jwtSecret.js";
 
 const ACCESS_TOKEN_EXPIRY = "15m"; // 15 minutes short-lived
 const REFRESH_TOKEN_EXPIRY_DAYS = 30; // 30 days
-const JWT_SECRET =
-  process.env.JWT_SECRET_KEY ||
-  process.env.JWT_SECRET ||
-  "lime_fallback_secret_key_2026";
 
 /**
  * Cookie configuration options supporting modern cross-site mobile browsers
@@ -35,7 +32,7 @@ export const getRefreshTokenCookieOptions = () => {
  * Generate a short-lived access JWT
  */
 export const generateAccessToken = (userId) => {
-  return jwt.sign({ userId }, JWT_SECRET, {
+  return jwt.sign({ userId }, getJwtSecret(), {
     expiresIn: ACCESS_TOKEN_EXPIRY,
   });
 };
@@ -101,21 +98,49 @@ export const rotateRefreshToken = async (oldTokenString) => {
       return null;
     }
 
-    // Generate new refresh token
+    // Create the replacement before publishing its value on the old token.
     const newRefreshToken = crypto.randomBytes(40).toString("hex");
     const expiresAt = new Date(
       Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     );
-
-    tokenDoc.isRevoked = true;
-    tokenDoc.replacedByToken = newRefreshToken;
-    await tokenDoc.save();
 
     await RefreshToken.create({
       token: newRefreshToken,
       user: tokenDoc.user,
       expiresAt,
     });
+
+    const claimedToken = await RefreshToken.findOneAndUpdate(
+      {
+        _id: tokenDoc._id,
+        isRevoked: false,
+        expiresAt: { $gt: new Date() },
+      },
+      {
+        $set: {
+          isRevoked: true,
+          replacedByToken: newRefreshToken,
+        },
+      },
+      { new: true }
+    );
+
+    if (!claimedToken) {
+      await RefreshToken.deleteOne({ token: newRefreshToken });
+      const currentToken = await RefreshToken.findById(tokenDoc._id);
+      if (
+        currentToken?.isRevoked &&
+        currentToken.replacedByToken &&
+        Date.now() - new Date(currentToken.updatedAt).getTime() < 15000
+      ) {
+        return {
+          accessToken: generateAccessToken(currentToken.user),
+          refreshToken: currentToken.replacedByToken,
+          userId: currentToken.user,
+        };
+      }
+      return null;
+    }
 
     const newAccessToken = generateAccessToken(tokenDoc.user);
 
@@ -126,7 +151,7 @@ export const rotateRefreshToken = async (oldTokenString) => {
     };
   } catch (err) {
     console.error("[Lime Auth] Token rotation error:", err.message);
-    return null;
+    throw err;
   }
 };
 
@@ -139,6 +164,7 @@ export const revokeRefreshToken = async (tokenString) => {
     await RefreshToken.deleteOne({ token: tokenString });
   } catch (err) {
     console.error("[Lime Auth] Revoke token error:", err.message);
+    throw err;
   }
 };
 
@@ -151,6 +177,7 @@ export const revokeAllUserRefreshTokens = async (userId) => {
     await RefreshToken.deleteMany({ user: userId });
   } catch (err) {
     console.error("[Lime Auth] Revoke all tokens error:", err.message);
+    throw err;
   }
 };
 

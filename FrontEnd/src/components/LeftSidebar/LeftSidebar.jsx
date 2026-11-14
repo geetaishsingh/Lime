@@ -45,14 +45,16 @@ export const LeftSidebar = () => {
         { refreshToken },
         { withCredentials: true }
       );
-    } catch (_error) {
-      // Continue client cleanup even if network fails
-    } finally {
       authStorage.clearTokens();
       authStorage.clearCachedUser();
       dispatch(resetUserState());
       toast.success("Logged out successfully");
       navigate("/login");
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message ||
+          "Could not reach Lime to sign out. Please try again."
+      );
     }
   };
 

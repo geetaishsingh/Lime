@@ -26,7 +26,6 @@ authRoute.post("/login", login);
 authRoute.post("/verify-login-otp", verifyLoginOtp);
 authRoute.post("/resend-login-otp", resendLoginOtp);
 authRoute.post("/refresh", refreshTokenController);
-authRoute.get("/logout", logout);
 authRoute.post("/logout", logout);
 authRoute.post("/send-otp", sendOtp);
 authRoute.post("/verify-otp", VerifyOtp);

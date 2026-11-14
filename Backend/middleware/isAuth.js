@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 const isAuth = async (req, res, next) => {
   const reqId = req.headers["x-request-id"] || "req_" + Math.random().toString(36).slice(2, 9);
@@ -32,11 +33,7 @@ const isAuth = async (req, res, next) => {
     }
 
     try {
-      const secret =
-        process.env.JWT_SECRET_KEY ||
-        process.env.JWT_SECRET ||
-        "lime_fallback_secret_key_2026";
-      const decodeToken = jwt.verify(token, secret);
+      const decodeToken = jwt.verify(token, getJwtSecret());
 
       if (!decodeToken || !decodeToken.userId) {
         console.warn(

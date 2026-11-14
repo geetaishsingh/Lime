@@ -1,10 +1,13 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
+import axios from "axios";
+import toast from "react-hot-toast";
 import { Navigate, Outlet } from "react-router-dom";
 import limeLogoIcon from "../assets/lime-logo-icon.png";
 import limeLogoIconLight from "../assets/lime-logo-icon-light.png";
+import { serverUrl } from "../config";
 import authStorage from "../utils/authStorage";
-import { setAuthLoading } from "../store/user.slice";
+import { resetUserState, setAuthLoading } from "../store/user.slice";
 
 const Protected = () => {
   const { user, loading, networkError, theme } = useSelector((state) => state.user);
@@ -32,7 +35,7 @@ const Protected = () => {
   }
 
   // 2. Network / server down recovery screen (preserves session during connection drops or cold starts)
-  if (networkError && !user && authStorage.hasAuth()) {
+  if (networkError && !user) {
     return (
       <div className="lime-splash-screen">
         <div className="lime-splash-content" style={{ maxWidth: "340px", textAlign: "center" }}>
@@ -71,10 +74,23 @@ const Protected = () => {
               Retry Connection
             </button>
             <button
-              onClick={() => {
-                authStorage.clearTokens();
-                authStorage.clearCachedUser();
-                window.location.href = "/login";
+              onClick={async () => {
+                try {
+                  await axios.post(
+                    `${serverUrl}/api/auth/logout`,
+                    { refreshToken: authStorage.getRefreshToken() },
+                    { withCredentials: true }
+                  );
+                  authStorage.clearTokens();
+                  authStorage.clearCachedUser();
+                  dispatch(resetUserState());
+                  window.location.href = "/login";
+                } catch (error) {
+                  toast.error(
+                    error.response?.data?.message ||
+                      "Could not reach Lime to sign out. Please try again."
+                  );
+                }
               }}
               style={{
                 background: "transparent",

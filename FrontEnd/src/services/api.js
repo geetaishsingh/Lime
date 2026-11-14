@@ -55,17 +55,10 @@ axios.interceptors.response.use(
     const url = originalRequest.url || "";
 
     // Ignore authentication endpoints themselves to prevent infinite loops
-    const isAuthRoute =
-      url.includes("/api/auth/login") ||
-      url.includes("/api/auth/register") ||
-      url.includes("/api/auth/refresh") ||
-      url.includes("/api/auth/verify-signup-otp");
+    const isAuthRoute = url.includes("/api/auth/");
 
     if (status === 401 && !originalRequest._retry && !isAuthRoute) {
       const refreshToken = authStorage.getRefreshToken();
-      if (!refreshToken) {
-        return Promise.reject(error);
-      }
 
       if (isRefreshing) {
         // Queue concurrent requests while token refresh is in flight
@@ -88,12 +81,12 @@ axios.interceptors.response.use(
         // Plain request without triggering interceptors again
         const { data } = await axios.post(
           `${serverUrl}/api/auth/refresh`,
-          { refreshToken },
+          refreshToken ? { refreshToken } : {},
           {
             withCredentials: true,
             headers: {
               "Content-Type": "application/json",
-              "x-refresh-token": refreshToken,
+              ...(refreshToken ? { "x-refresh-token": refreshToken } : {}),
             },
           }
         );
@@ -116,9 +109,14 @@ axios.interceptors.response.use(
           throw new Error("Invalid refresh response");
         }
       } catch (refreshErr) {
-        console.warn("[Lime Auth] Refresh request failed - session expired");
-        authStorage.clearTokens();
-        authStorage.clearCachedUser();
+        const refreshStatus = refreshErr.response?.status;
+        if (refreshStatus === 401 || refreshStatus === 403) {
+          console.info("[Lime Auth] Refresh rejected; clearing expired session");
+          authStorage.clearTokens();
+          authStorage.clearCachedUser();
+        } else {
+          console.warn("[Lime Auth] Refresh unavailable; preserving local session");
+        }
         processQueue(refreshErr, null);
         return Promise.reject(refreshErr);
       } finally {
