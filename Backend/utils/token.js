@@ -1,5 +1,19 @@
 import jwt from "jsonwebtoken";
 
+export const getTokenCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === "production";
+  const secure = process.env.COOKIE_SECURE === "true" || isProduction;
+
+  return {
+    httpOnly: true,
+    path: "/",
+    secure,
+    sameSite: secure ? "none" : "lax",
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
+  };
+};
+
 const getToken = async (userId) => {
   try {
     const secret =

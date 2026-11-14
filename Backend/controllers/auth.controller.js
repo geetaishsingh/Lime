@@ -1,7 +1,7 @@
 import User from "../models/user.model.js";
 import PendingSignup from "../models/pendingSignup.model.js";
 import { sendOtpmail, sendSignupOtpMail } from "../utils/mail.js";
-import getToken from "../utils/token.js";
+import getToken, { getTokenCookieOptions } from "../utils/token.js";
 import bcrypt from "bcryptjs";
 import { randomInt } from "node:crypto";
 
@@ -217,12 +217,7 @@ export const verifySignupOtp = async (req, res) => {
     }
 
     const token = await getToken(user._id);
-    res.cookie("token", token, {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    });
+    res.cookie("token", token, getTokenCookieOptions());
 
     return res.status(200).json({
       message: "Account verified successfully! Welcome to Lime.",
@@ -329,12 +324,7 @@ export const login = async (req, res) => {
 
     // Direct password login without OTP requirement (preserved for signup and password recovery)
     const token = await getToken(user._id);
-    res.cookie("token", token, {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", token, getTokenCookieOptions());
 
     return res.status(200).json({
       message: `Welcome back, @${user.username}!`,
@@ -353,11 +343,7 @@ export const login = async (req, res) => {
  */
 export const logout = async (req, res) => {
   try {
-    res.clearCookie("token", {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      httpOnly: true,
-    });
+    res.clearCookie("token", getTokenCookieOptions());
     return res.status(200).json({ message: "Logged out successfully", success: true });
   } catch (error) {
     return res.status(500).json({ message: `Logout error: ${error.message}`, success: false });
@@ -512,12 +498,7 @@ export const googleCallback = async (req, res) => {
       return res.redirect(`${clientUrl}/login`);
     }
     const token = await getToken(user._id);
-    res.cookie("token", token, {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", token, getTokenCookieOptions());
     return res.redirect(`${clientUrl}/`);
   } catch (error) {
     console.error("Google Callback Error:", error);
@@ -534,12 +515,7 @@ export const githubCallback = async (req, res) => {
       return res.redirect(`${clientUrl}/login`);
     }
     const token = await getToken(user._id);
-    res.cookie("token", token, {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", token, getTokenCookieOptions());
     return res.redirect(`${clientUrl}/`);
   } catch (error) {
     console.error("GitHub Callback Error:", error);

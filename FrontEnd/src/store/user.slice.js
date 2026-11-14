@@ -36,6 +36,14 @@ const userSlice = createSlice({
         state.unreadNotificationsCount = 0;
       }
     },
+    setAuthLoading: (state, action) => {
+      state.loading = Boolean(action.payload);
+    },
+    setAuthState: (state, action) => {
+      const { user, loading = false } = action.payload || {};
+      state.user = user || null;
+      state.loading = Boolean(loading);
+    },
     setTheme: (state, action) => {
       state.theme = action.payload;
       if (typeof window !== "undefined") {
@@ -237,6 +245,8 @@ export const {
   setUserPosts,
   setMySuggestion,
   setMyLikes,
+  setAuthLoading,
+  setAuthState,
   addLiked,
   removeLiked,
   addBookmark,

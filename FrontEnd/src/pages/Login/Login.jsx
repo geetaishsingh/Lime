@@ -164,7 +164,7 @@ const Login = () => {
                 ) : (
                   <>
                     <span className="desktop-btn-text">Sign In to Lime</span>
-                    <span className="mobile-btn-text">Let&apos;s Plopp!</span>
+                    <span className="mobile-btn-text">Let&apos;s go!</span>
                   </>
                 )}
               </button>
