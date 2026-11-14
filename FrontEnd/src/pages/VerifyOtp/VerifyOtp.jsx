@@ -8,6 +8,7 @@ import { BeatLoader } from "react-spinners";
 import { ShieldCheck, ArrowLeft, RefreshCw } from "lucide-react";
 import { serverUrl } from "../../config";
 import { setuser } from "../../store/user.slice";
+import authStorage from "../../utils/authStorage";
 
 const VerifyOtp = () => {
   const [searchParams] = useSearchParams();
@@ -101,8 +102,14 @@ const VerifyOtp = () => {
       );
 
       if (data?.success) {
+        if (data.token || data.accessToken) {
+          authStorage.setTokens(data.token || data.accessToken, data.refreshToken);
+        }
+        if (data.user) {
+          authStorage.setCachedUser(data.user);
+          dispatch(setuser(data.user));
+        }
         toast.success(data.message || "Account activated! Welcome to Lime.");
-        dispatch(setuser(data.user));
         navigate("/", { replace: true });
       }
     } catch (err) {

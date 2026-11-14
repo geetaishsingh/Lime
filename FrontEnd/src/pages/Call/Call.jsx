@@ -365,21 +365,6 @@ const CallPage = () => {
       className={`call-container ${isAudioOnly ? "call-container--audio" : ""}`}
       onClick={handleContainerInteraction}
     >
-      <div className="call-mobile-status-bar">
-        <span className="status-time">7:45</span>
-        <div className="status-icons">
-          <span className="wifi-dot" />
-          <span className="signal-bars" />
-          <span className="battery-pill"><span /></span>
-        </div>
-      </div>
-
-      <div className="call-mobile-address-bar">
-        <div className="address-home" />
-        <span className="address-url">lime-oeee.onrender.com/call</span>
-        <span className="address-badge">11</span>
-        <button className="address-menu" aria-label="More options">⋮</button>
-      </div>
 
       {/* Essential: Audio element for remote sound in BOTH audio and video calls */}
       <audio

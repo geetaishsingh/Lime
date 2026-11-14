@@ -1,187 +1,37 @@
 @use '../../styles/variable.scss' as *;
 
-.lime-mobile-shell {
-  width: 100%;
-  min-height: 100dvh;
-  background: #07090d;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-
-  @media (min-width: 641px) {
-    background: transparent;
-    min-height: unset;
-  }
-}
-
-.lime-mobile-status-bar,
-.call-mobile-status-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 20px 10px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #fff;
-
-  @media (min-width: 641px) {
-    display: none;
-  }
-
-  .status-time {
-    letter-spacing: -0.03em;
-  }
-
-  .status-icons {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    .wifi-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #fff;
-      opacity: 0.9;
-      box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
-    }
-
-    .signal-bars {
-      width: 22px;
-      height: 14px;
-      border-radius: 3px;
-      position: relative;
-      background: linear-gradient(
-        to right,
-        rgba(255,255,255,0.9) 0 30%,
-        rgba(255,255,255,0.5) 30% 60%,
-        rgba(255,255,255,0.2) 60% 100%
-      );
-      clip-path: polygon(0 100%, 20% 100%, 20% 65%, 40% 65%, 40% 40%, 60% 40%, 60% 28%, 80% 28%, 80% 12%, 100% 12%, 100% 100%);
-    }
-
-    .battery-pill {
-      width: 26px;
-      height: 14px;
-      border-radius: 4px;
-      border: 1.5px solid rgba(255,255,255,0.9);
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      padding: 1px;
-
-      span {
-        display: block;
-        width: 100%;
-        height: 100%;
-        border-radius: 3px;
-        background: linear-gradient(90deg, #a7f3d0 0%, #34d399 100%);
-      }
-    }
-  }
-}
-
-.lime-mobile-address-bar,
-.call-mobile-address-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 14px 14px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-
-  @media (min-width: 641px) {
-    display: none;
-  }
-
-  .address-home {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: #fff;
-    opacity: 0.9;
-    position: relative;
-
-    &::before {
-      content: "";
-      position: absolute;
-      inset: 6px;
-      border-radius: 6px;
-      background: #0b0d12;
-      box-shadow: 0 -8px 0 0 #0b0d12;
-      clip-path: polygon(50% 0%, 100% 40%, 100% 100%, 0 100%, 0 40%);
-    }
-  }
-
-  .address-url {
-    flex: 1;
-    font-size: 1.1rem;
-    font-weight: 500;
-    letter-spacing: -0.03em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: rgba(255,255,255,0.9);
-  }
-
-  .address-badge {
-    min-width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.14);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: #fff;
-  }
-
-  .address-menu {
-    border: none;
-    background: transparent;
-    color: #fff;
-    font-size: 1.5rem;
-    line-height: 1;
-    cursor: pointer;
-    padding: 0 2px;
-  }
-}
-
 .messages-layout-container {
   width: 100%;
-  height: calc(100dvh - 155px);
-  max-width: 980px;
-  margin: 0 auto;
+  height: calc(100dvh - 48px);
+  max-width: 1100px;
+  margin: 24px auto;
   display: flex;
-  background-color: #111317;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 30px 30px 0 0;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: $radius-xl;
   overflow: hidden;
-  box-shadow: 0 -10px 30px rgba(0,0,0,0.18);
-
-  @media (min-width: 641px) {
-    height: calc(100dvh - 48px);
-    margin: 24px auto;
-    border-radius: $radius-xl;
-  }
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 
   @media (max-width: 640px) {
-    border-radius: 28px 28px 0 0;
+    height: 100%;
     min-height: 0;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
     flex: 1;
+    width: 100%;
   }
 }
 
-/* Empty State */
+/* Empty State (when no conversation is selected on desktop) */
 .no-chat-selected-screen {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 32px;
+  background-color: var(--bg-card);
 
   .no-chat-inner {
     display: flex;
@@ -194,7 +44,7 @@
       width: 84px;
       height: 84px;
       border-radius: $radius-full;
-      background-color: var(--lime-glow);
+      background-color: var(--lime-glow, rgba(132, 204, 22, 0.15));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -212,124 +62,6 @@
       color: var(--text-secondary);
       max-width: 320px;
       line-height: 1.5;
-    }
-  }
-}
-
-.lime-mobile-footer-nav {
-  display: none;
-
-  @media (max-width: 640px) {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    gap: 6px;
-    padding: 12px 8px 18px;
-    background: #07090d;
-    border-top: 1px solid rgba(255,255,255,0.04);
-
-    .nav-item {
-      appearance: none;
-      border: none;
-      background: transparent;
-      color: rgba(255,255,255,0.75);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 6px 8px;
-      min-width: 56px;
-      cursor: pointer;
-
-      &.active {
-        color: #fff;
-      }
-
-      &.create {
-        position: relative;
-        top: -6px;
-      }
-
-      .nav-icon {
-        width: 24px;
-        height: 24px;
-        display: inline-block;
-        position: relative;
-        border-radius: 8px;
-        opacity: 0.9;
-
-        &.home::before {
-          content: "";
-          position: absolute;
-          inset: 5px 4px 4px;
-          border-radius: 5px;
-          border: 2px solid currentColor;
-          border-top: 0;
-        }
-
-        &.search::before {
-          content: "";
-          position: absolute;
-          inset: 5px 5px 5px 5px;
-          border: 2px solid currentColor;
-          border-radius: 50%;
-        }
-
-        &.search::after {
-          content: "";
-          position: absolute;
-          width: 8px;
-          height: 2px;
-          right: 1px;
-          bottom: 4px;
-          background: currentColor;
-          transform: rotate(45deg);
-          border-radius: 2px;
-        }
-
-        &.plus::before,
-        &.plus::after {
-          content: "";
-          position: absolute;
-          background: currentColor;
-          border-radius: 2px;
-          left: 50%;
-          top: 50%;
-          transform: translate(-50%, -50%);
-        }
-
-        &.plus::before { width: 16px; height: 2px; }
-        &.plus::after { width: 2px; height: 16px; }
-
-        &.inbox::before {
-          content: "";
-          position: absolute;
-          inset: 4px 3px 5px;
-          border: 2px solid currentColor;
-          border-radius: 4px;
-        }
-
-        &.inbox::after {
-          content: "";
-          position: absolute;
-          left: 6px;
-          right: 6px;
-          bottom: 4px;
-          height: 2px;
-          background: currentColor;
-          border-radius: 2px;
-        }
-
-        &.bookmark::before {
-          content: "";
-          position: absolute;
-          inset: 4px 5px 4px 5px;
-          border: 2px solid currentColor;
-          clip-path: polygon(50% 0, 100% 24%, 100% 100%, 0 100%, 0 24%);
-        }
-      }
     }
   }
 }

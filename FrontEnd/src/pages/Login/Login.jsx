@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import { BeatLoader } from "react-spinners";
 import { serverUrl } from "../../config";
 import { setuser } from "../../store/user.slice";
+import authStorage from "../../utils/authStorage";
 import LimeMascot from "../../components/common/LimeMascot/LimeMascot";
 
 // OAuth base URL — points to loginSystem backend (port 3000) for Google/GitHub OAuth
@@ -58,7 +59,13 @@ const Login = () => {
       );
 
       if (data?.success) {
-        dispatch(setuser(data.user));
+        if (data.token || data.accessToken) {
+          authStorage.setTokens(data.token || data.accessToken, data.refreshToken);
+        }
+        if (data.user) {
+          authStorage.setCachedUser(data.user);
+          dispatch(setuser(data.user));
+        }
         toast.success(data.message || `Welcome back!`);
         navigate("/");
       }

@@ -34,6 +34,7 @@ import { serverUrl, getMediaUrl } from "../../config";
 import CommentModel from "../../components/CommentModal";
 import FollowersModal from "../../components/FollowersModal";
 import FollowingModal from "../../components/FollowingModal";
+import authStorage from "../../utils/authStorage";
 import {
   toggleBlockUserInState,
   updateCoverImageInState,
@@ -75,14 +76,20 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.get(`${serverUrl}/api/auth/logout`, {
-        withCredentials: true,
-      });
+      const refreshToken = authStorage.getRefreshToken();
+      await axios.post(
+        `${serverUrl}/api/auth/logout`,
+        { refreshToken },
+        { withCredentials: true }
+      );
+    } catch (_error) {
+      // Continue client cleanup
+    } finally {
+      authStorage.clearTokens();
+      authStorage.clearCachedUser();
       dispatch(resetUserState());
       toast.success("Logged out successfully");
       navigate("/login");
-    } catch (_error) {
-      toast.error("Logout failed. Please try again.");
     }
   };
 
