@@ -383,6 +383,26 @@ export const login = async (req, res) => {
       });
     }
 
+    // Direct password sign-in by default.
+    // If Two-Factor Authentication (2FA) is explicitly enabled via REQUIRE_LOGIN_OTP=true, dispatch OTP.
+    const requireLoginOtp = process.env.REQUIRE_LOGIN_OTP === "true";
+
+    if (!requireLoginOtp) {
+      const token = generateAccessToken(user._id);
+      const refreshToken = await generateRefreshToken(user._id);
+      res.cookie("token", token, getTokenCookieOptions());
+      res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
+
+      return res.status(200).json({
+        message: `Welcome back, @${user.username}!`,
+        success: true,
+        user: sanitizeUser(user),
+        token,
+        accessToken: token,
+        refreshToken,
+      });
+    }
+
     const otp = randomInt(100000, 1000000).toString();
     const challengeId = randomBytes(32).toString("hex");
     const now = new Date();
@@ -394,27 +414,17 @@ export const login = async (req, res) => {
     user.loginOtpChallengeExpires = new Date(now.getTime() + 10 * 60 * 1000);
     await user.save();
 
-    try {
-      await sendLoginOtpMail(user.email, otp);
-    } catch (emailError) {
-      user.loginOtpHash = undefined;
-      user.loginOtpExpires = undefined;
-      user.loginOtpSentAt = undefined;
-      user.loginOtpChallengeHash = undefined;
-      user.loginOtpChallengeExpires = undefined;
-      await user.save();
-      return res.status(503).json({
-        message: emailError.message,
-        success: false,
-      });
-    }
+    const mailResult = await sendLoginOtpMail(user.email, otp);
 
     return res.status(200).json({
-      message: `A sign-in code was sent to ${user.email}.`,
+      message: mailResult?.warning
+        ? `Sign-in code generated. ${mailResult.warning}`
+        : `A sign-in code was sent to ${user.email}.`,
       success: true,
       requiresOtp: true,
       email: user.email,
       challengeId,
+      ...(mailResult?.previewOtp ? { devOtp: mailResult.previewOtp } : {}),
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -540,24 +550,14 @@ export const resendLoginOtp = async (req, res) => {
     user.loginOtpChallengeExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    try {
-      await sendLoginOtpMail(user.email, otp);
-    } catch (emailError) {
-      user.loginOtpHash = previousOtp.hash;
-      user.loginOtpExpires = previousOtp.expires;
-      user.loginOtpAttempts = previousOtp.attempts;
-      user.loginOtpSentAt = previousOtp.sentAt;
-      user.loginOtpChallengeExpires = previousOtp.challengeExpires;
-      await user.save();
-      return res.status(503).json({
-        message: emailError.message,
-        success: false,
-      });
-    }
+    const mailResult = await sendLoginOtpMail(user.email, otp);
 
     return res.status(200).json({
-      message: `A new sign-in code was sent to ${user.email}.`,
+      message: mailResult?.warning
+        ? `Sign-in code regenerated. ${mailResult.warning}`
+        : `A new sign-in code was sent to ${user.email}.`,
       success: true,
+      ...(mailResult?.previewOtp ? { devOtp: mailResult.previewOtp } : {}),
     });
   } catch (error) {
     console.error("Resend login OTP error:", error);
