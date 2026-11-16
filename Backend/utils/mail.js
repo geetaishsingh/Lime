@@ -46,6 +46,13 @@ const logSmtpFailure = (purpose, error) => {
   console.error(`[Email Error] Failed to send ${purpose}: ${code}${responseCode}`);
 };
 
+const getSmtpFailureMessage = (error, purpose) => {
+  if (error?.code === "EAUTH" || Number(error?.responseCode) === 535) {
+    return "Gmail rejected the email credentials. Verify the sender address and use its Google App Password as EMAIL_PASS.";
+  }
+  return `Could not send ${purpose}. Check backend email settings and try again.`;
+};
+
 /**
  * Send Signup verification OTP
  */
@@ -78,7 +85,7 @@ export const sendSignupOtpMail = async (to, otp) => {
     return { success: true, method: "smtp" };
   } catch (error) {
     logSmtpFailure("signup OTP", error);
-    throw new Error("Could not send the verification email. Check backend email settings and try again.");
+    throw new Error(getSmtpFailureMessage(error, "the verification email"));
   }
 };
 
@@ -101,7 +108,7 @@ export const sendLoginOtpMail = async (to, otp) => {
     return { success: true, method: "smtp" };
   } catch (error) {
     logSmtpFailure("login OTP", error);
-    throw new Error("Could not send the sign-in code. Check backend email settings and try again.");
+    throw new Error(getSmtpFailureMessage(error, "the sign-in code"));
   }
 };
 
@@ -136,6 +143,6 @@ export const sendOtpmail = async (to, otp) => {
     return { success: true, method: "smtp" };
   } catch (error) {
     logSmtpFailure("password reset OTP", error);
-    throw new Error("Could not send the password reset code. Check backend email settings and try again.");
+    throw new Error(getSmtpFailureMessage(error, "the password reset code"));
   }
 };
