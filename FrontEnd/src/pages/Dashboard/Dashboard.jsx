@@ -12,9 +12,7 @@ import {
 } from "lucide-react";
 import LeftSidebar from "../../components/LeftSidebar";
 import limeLogoFull from "../../assets/lime-logo-full.png";
-import limeLogoIcon from "../../assets/lime-logo-icon.png";
 import limeLogoFullLight from "../../assets/lime-logo-full-light.png";
-import limeLogoIconLight from "../../assets/lime-logo-icon-light.png";
 
 const Dashboard = () => {
   const { user, theme, unreadNotificationsCount, unreadMessagesCount } = useSelector(
@@ -83,79 +81,63 @@ const Dashboard = () => {
             <Outlet />
           </main>
 
-          {/* Mobile Bottom Navigation Bar: Floating Capsule Dock (hidden when keyboard is open or inside active chat) */}
+          {/* Mobile Bottom Navigation Bar — Flat Tab Bar (hidden when keyboard open or inside active chat) */}
           {!isKeyboardOpen && !isChatOpenOnMobile && (
-            <nav className="mobile-bottom-nav floating-dock-nav" aria-label="Mobile Navigation">
-              {/* Circular Logo Emblem on Far Left */}
-              <Link to="/" className="dock-brand-circle" title="Lime Home" aria-label="Lime Home">
-                <img
-                  src={theme === "light" ? limeLogoIconLight : limeLogoIcon}
-                  alt="Lime"
-                  className="dock-brand-logo"
-                />
+            <nav className="mobile-bottom-nav flat-tab-nav" aria-label="Mobile Navigation">
+              {/* Home */}
+              <Link
+                to="/"
+                className={`tab-nav-item ${isHomeActive ? "active" : ""}`}
+                aria-label="Home"
+              >
+                <Home size={22} className="tab-icon" />
+                <span className="tab-label">Home</span>
               </Link>
 
-              {/* Navigation Items Tray */}
-              <div className="dock-nav-items">
-                {/* Home */}
-                <Link
-                  to="/"
-                  className={`dock-nav-item ${isHomeActive ? "active" : ""}`}
-                >
-                  <div className="dock-active-contour" />
-                  <Home size={19} className="dock-icon" />
-                  <span className="dock-active-dot" />
-                  <span className="dock-label">Home</span>
-                </Link>
+              {/* Messages */}
+              <Link
+                to="/messages"
+                className={`tab-nav-item ${isInboxActive ? "active" : ""}`}
+                aria-label="Messages"
+              >
+                <div className="tab-icon-wrapper">
+                  <MessageCircle size={22} className="tab-icon" />
+                  {unreadMessagesCount > 0 && (
+                    <span className="tab-unread-badge" />
+                  )}
+                </div>
+                <span className="tab-label">Message</span>
+              </Link>
 
-                {/* Messages */}
-                <Link
-                  to="/messages"
-                  className={`dock-nav-item ${isInboxActive ? "active" : ""}`}
-                >
-                  <div className="dock-active-contour" />
-                  <div className="dock-icon-wrapper">
-                    <MessageCircle size={19} className="dock-icon" />
-                    {unreadMessagesCount > 0 && (
-                      <span className="dock-unread-badge" />
-                    )}
-                  </div>
-                  <span className="dock-active-dot" />
-                  <span className="dock-label">Message</span>
-                </Link>
+              {/* Create */}
+              <Link
+                to="/create-post"
+                className={`tab-nav-item ${isCreateActive ? "active" : ""}`}
+                aria-label="Create Post"
+              >
+                <Plus size={22} className="tab-icon" />
+                <span className="tab-label">Create</span>
+              </Link>
 
-                {/* Create */}
-                <Link
-                  to="/create-post"
-                  className={`dock-nav-item ${isCreateActive ? "active" : ""}`}
-                >
-                  <div className="dock-active-contour" />
-                  <Plus size={20} className="dock-icon" />
-                  <span className="dock-active-dot" />
-                  <span className="dock-label">Create</span>
-                </Link>
-
-                {/* Profile */}
-                <Link
-                  to={`/profile/${user?._id}`}
-                  className={`dock-nav-item ${isProfileActive ? "active" : ""}`}
-                >
-                  <div className="dock-active-contour" />
-                  <div className="dock-avatar-frame">
-                    {user?.profileImage ? (
-                      <img
-                        src={user.profileImage}
-                        alt={user.username || "Profile"}
-                        className="dock-avatar-img"
-                      />
-                    ) : (
-                      <User size={19} className="dock-icon" />
-                    )}
-                  </div>
-                  <span className="dock-active-dot" />
-                  <span className="dock-label">Profile</span>
-                </Link>
-              </div>
+              {/* Profile */}
+              <Link
+                to={`/profile/${user?._id}`}
+                className={`tab-nav-item ${isProfileActive ? "active" : ""}`}
+                aria-label="Profile"
+              >
+                <div className="tab-avatar-frame">
+                  {user?.profileImage ? (
+                    <img
+                      src={user.profileImage}
+                      alt={user.username || "Profile"}
+                      className="tab-avatar-img"
+                    />
+                  ) : (
+                    <User size={22} className="tab-icon" />
+                  )}
+                </div>
+                <span className="tab-label">Profile</span>
+              </Link>
             </nav>
           )}
         </div>
