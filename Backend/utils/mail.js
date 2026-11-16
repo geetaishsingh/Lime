@@ -4,7 +4,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const emailUser = process.env.EMAIL || process.env.EMAIL_USER;
-const emailPass = process.env.EMAIL_PASS || process.env.PASSWORD;
+const emailPass =
+  process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD || process.env.PASSWORD;
 
 const isEmailConfigured = Boolean(
   emailUser &&
