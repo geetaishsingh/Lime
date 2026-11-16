@@ -18,6 +18,7 @@ import postRoute from "./routes/post.route.js";
 import messageRoute from "./routes/message.route.js";
 import storyRoute from "./routes/story.route.js";
 import notificationRoute from "./routes/notification.route.js";
+import { getJwtSecret } from "./utils/jwtSecret.js";
 
 // Load Passport strategies after dotenv has populated process.env.
 import "./config/googleStrategy.js";
@@ -26,27 +27,51 @@ import "./config/githubStrategy.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+getJwtSecret();
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
-// Supported frontend origins
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:3000",
-  "http://127.0.0.1:5173",
-  "http://127.0.0.1:5174",
-];
+const normalizeOrigin = (value) => {
+  try {
+    return new URL(value.trim()).origin;
+  } catch {
+    return null;
+  }
+};
+
+const configuredOrigins = [
+  process.env.CLIENT_URL,
+  ...(process.env.CLIENT_URLS || "").split(","),
+]
+  .filter(Boolean)
+  .map(normalizeOrigin)
+  .filter(Boolean);
+
+if (process.env.NODE_ENV === "production" && configuredOrigins.length === 0) {
+  throw new Error("Configure CLIENT_URL or CLIENT_URLS with the production frontend origin.");
+}
+
+const developmentOrigins =
+  process.env.NODE_ENV === "production"
+    ? []
+    : [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+      ];
+
+const allowedOrigins = new Set([...configuredOrigins, ...developmentOrigins]);
+const corsOrigin = (origin, callback) => {
+  callback(null, !origin || allowedOrigins.has(origin));
+};
 
 const io = new Server(server, {
   cors: {
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, true); // Dev-friendly permissive CORS
-    },
+    origin: corsOrigin,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   },
@@ -62,14 +87,31 @@ app.use(passport.initialize());
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      callback(null, true); // Permissive in dev to avoid blocking local Vite ports
-    },
+    origin: corsOrigin,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-refresh-token",
+      "x-request-id",
+    ],
   })
 );
+
+app.use("/api", (req, res, next) => {
+  const isStateChanging = !["GET", "HEAD", "OPTIONS"].includes(req.method);
+  const origin = req.get("Origin");
+
+  if (isStateChanging && origin && !allowedOrigins.has(origin)) {
+    return res.status(403).json({
+      message: "Request origin is not allowed.",
+      success: false,
+    });
+  }
+
+  return next();
+});
 
 app.use("/api", (req, res, next) => {
   if (mongoose.connection.readyState !== 1) {

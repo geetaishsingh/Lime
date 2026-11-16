@@ -59,11 +59,36 @@ export const sendSignupOtpMail = async (to, otp) => {
       return { success: true, method: "smtp" };
     } catch (err) {
       console.error("[Email Error] Failed to send via SMTP:", err.message);
-      return { success: true, method: "dev_fallback" };
+      throw new Error("Could not send the verification code. Please try again.");
     }
-  } else {
-    // Development fallback
-    return { success: true, method: "dev_fallback" };
+  }
+
+  throw new Error("Email delivery is not configured.");
+};
+
+export const sendLoginOtpMail = async (to, otp) => {
+  if (!isEmailConfigured || !transporter) {
+    throw new Error("Email delivery is not configured.");
+  }
+
+  try {
+    await transporter.sendMail({
+      from: `"Lime Security" <${emailUser}>`,
+      to,
+      subject: "Your Lime sign-in code",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
+          <h1 style="color: #10b981;">Lime sign-in</h1>
+          <p>Use this code to finish signing in to Lime:</p>
+          <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #10b981;">${otp}</p>
+          <p>This code expires in 10 minutes. If you did not try to sign in, you can ignore this email.</p>
+        </div>
+      `,
+    });
+    return { success: true, method: "smtp" };
+  } catch (error) {
+    console.error("[Email Error] Failed to send login OTP:", error.message);
+    throw new Error("Could not send the sign-in code. Please try again.");
   }
 };
 
@@ -98,9 +123,9 @@ export const sendOtpmail = async (to, otp) => {
       return { success: true, method: "smtp" };
     } catch (err) {
       console.error("[Email Error] Failed to send via SMTP:", err.message);
-      return { success: true, method: "dev_fallback" };
+      throw new Error("Could not send the password reset code. Please try again.");
     }
-  } else {
-    return { success: true, method: "dev_fallback" };
   }
+
+  throw new Error("Email delivery is not configured.");
 };

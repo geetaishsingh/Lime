@@ -1,7 +1,7 @@
 import './Messages.scss';
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { MessageSquare } from "lucide-react";
 import { serverUrl } from "../../config";
@@ -12,6 +12,7 @@ import { socket } from "../../socket";
 const MessagePage = () => {
   const { user } = useSelector((state) => state.user);
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [conversations, setConversations] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
@@ -46,6 +47,8 @@ const MessagePage = () => {
               setConversations((prev) => [convData.conversation, ...prev]);
             }
           }
+        } else {
+          setSelectedChat(null);
         }
       }
     } catch (err) {
@@ -93,7 +96,13 @@ const MessagePage = () => {
         setConversations={setConversations}
         currentUser={user}
         selectedChat={selectedChat}
-        setSelectedChat={setSelectedChat}
+        setSelectedChat={(conv) => {
+          setSelectedChat(conv);
+          const other = getOtherUser(conv);
+          if (other?._id) {
+            navigate(`/messages/${other._id}`);
+          }
+        }}
         onlineUsers={onlineUsers}
         getOtherUser={getOtherUser}
       />
@@ -106,7 +115,10 @@ const MessagePage = () => {
           currentUser={user}
           otherUser={getOtherUser(selectedChat)}
           onlineUsers={onlineUsers}
-          onBack={() => setSelectedChat(null)}
+          onBack={() => {
+            setSelectedChat(null);
+            navigate("/messages");
+          }}
         />
       ) : (
         <div className="no-chat-selected-screen">
@@ -126,4 +138,3 @@ const MessagePage = () => {
 };
 
 export default MessagePage;
-

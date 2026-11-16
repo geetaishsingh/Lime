@@ -369,6 +369,7 @@ const CallPage = () => {
       className={`call-container ${isAudioOnly ? "call-container--audio" : ""}`}
       onClick={handleContainerInteraction}
     >
+
       {/* Essential: Audio element for remote sound in BOTH audio and video calls */}
       <audio
         ref={remoteAudioRef}

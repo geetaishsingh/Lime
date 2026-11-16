@@ -42,39 +42,44 @@ const Dashboard = () => {
   const isCreateActive = location.pathname === "/create-post";
   const isInboxActive = location.pathname.startsWith("/messages");
   const isProfileActive = location.pathname.startsWith(`/profile/${user?._id}`);
+  const isChatOpenOnMobile =
+    location.pathname.startsWith("/messages/") &&
+    location.pathname.length > "/messages/".length;
 
   return (
-    <div className="dashboard-container">
+    <div className={`dashboard-container ${isChatOpenOnMobile ? "mobile-chat-active" : ""}`}>
       <div className="container">
         <div className="dashboard-inner-container">
-          {/* Mobile Top Header */}
-          <header className="mobile-top-header">
-            <Link to="/" className="mobile-logo-link" aria-label="Lime Home">
-              <img
-                src={theme === "light" ? limeLogoFullLight : limeLogoFull}
-                alt="Lime"
-                className="mobile-brand-logo"
-              />
-            </Link>
+          {/* Mobile Top Header (hidden inside active mobile chat) */}
+          {!isChatOpenOnMobile && (
+            <header className="mobile-top-header">
+              <Link to="/" className="mobile-logo-link" aria-label="Lime Home">
+                <img
+                  src={theme === "light" ? limeLogoFullLight : limeLogoFull}
+                  alt="Lime"
+                  className="mobile-brand-logo"
+                />
+              </Link>
 
-            <div className="mobile-header-actions">
-              <Link to="/create-post" className="mobile-header-btn" title="Create Post">
-                <Plus size={22} />
-              </Link>
-              <Link to="/notifications" className="mobile-header-btn" title="Notifications">
-                <Heart size={22} />
-                {unreadNotificationsCount > 0 && (
-                  <span className="mobile-unread-dot" />
-                )}
-              </Link>
-              <Link to="/messages" className="mobile-header-btn" title="Messages">
-                <Send size={22} />
-                {unreadMessagesCount > 0 && (
-                  <span className="mobile-unread-dot" />
-                )}
-              </Link>
-            </div>
-          </header>
+              <div className="mobile-header-actions">
+                <Link to="/create-post" className="mobile-header-btn" title="Create Post">
+                  <Plus size={22} />
+                </Link>
+                <Link to="/notifications" className="mobile-header-btn" title="Notifications">
+                  <Heart size={22} />
+                  {unreadNotificationsCount > 0 && (
+                    <span className="mobile-unread-dot" />
+                  )}
+                </Link>
+                <Link to="/messages" className="mobile-header-btn" title="Messages">
+                  <Send size={22} />
+                  {unreadMessagesCount > 0 && (
+                    <span className="mobile-unread-dot" />
+                  )}
+                </Link>
+              </div>
+            </header>
+          )}
 
           {/* Left Navigation Sidebar for Desktop */}
           <LeftSidebar />
@@ -84,8 +89,8 @@ const Dashboard = () => {
             <Outlet />
           </main>
 
-          {/* Mobile Bottom Navigation Bar: Floating Capsule Dock */}
-          {!isKeyboardOpen && (
+          {/* Mobile Bottom Navigation Bar: Floating Capsule Dock (hidden when keyboard is open or inside active chat) */}
+          {!isKeyboardOpen && !isChatOpenOnMobile && (
             <nav className="mobile-bottom-nav floating-dock-nav" aria-label="Mobile Navigation">
               {/* Circular Logo Emblem on Far Left */}
               <Link to="/" className="dock-brand-circle" title="Lime Home" aria-label="Lime Home">

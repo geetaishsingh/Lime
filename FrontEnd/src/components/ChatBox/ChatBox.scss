@@ -498,6 +498,7 @@
 
     @media (max-width: 640px) {
       padding: 10px 12px;
+      padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
       gap: 8px;
     }
 

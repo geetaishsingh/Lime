@@ -1,6 +1,6 @@
 import './VerifyOtp.scss';
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams, Link } from "react-router-dom";
 import axios from "axios";
 import { useDispatch } from "react-redux";
 import toast from "react-hot-toast";
@@ -8,11 +8,32 @@ import { BeatLoader } from "react-spinners";
 import { ShieldCheck, ArrowLeft, RefreshCw } from "lucide-react";
 import { serverUrl } from "../../config";
 import { setuser } from "../../store/user.slice";
+import authStorage from "../../utils/authStorage";
+
+const readSessionValue = (key) => {
+  try {
+    return sessionStorage.getItem(key) || "";
+  } catch (_error) {
+    return "";
+  }
+};
+
+const removeSessionValue = (key) => {
+  try {
+    sessionStorage.removeItem(key);
+  } catch (_error) {
+    // The active flow can complete without session storage.
+  }
+};
 
 const VerifyOtp = () => {
   const [searchParams] = useSearchParams();
-  const fallbackEmail = sessionStorage.getItem("otp_email") || "";
-  const email = searchParams.get("email") || fallbackEmail;
+  const location = useLocation();
+  const isLogin = searchParams.get("mode") === "login";
+  const fallbackEmail = readSessionValue("otp_email");
+  const email = searchParams.get("email") || location.state?.email || fallbackEmail;
+  const challengeId =
+    location.state?.challengeId || readSessionValue("login_otp_challenge");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -85,7 +106,12 @@ const VerifyOtp = () => {
       return;
     }
 
-    if (!email) {
+    if (isLogin && !challengeId) {
+      setErrorMsg("This sign-in session has expired. Please sign in again.");
+      return;
+    }
+
+    if (!isLogin && !email) {
       setErrorMsg("Email address is required.");
       return;
     }
@@ -95,14 +121,22 @@ const VerifyOtp = () => {
       setErrorMsg("");
 
       const { data } = await axios.post(
-        `${serverUrl}/api/auth/verify-signup-otp`,
-        { email, otp: fullOtp },
+        `${serverUrl}/api/auth/${isLogin ? "verify-login-otp" : "verify-signup-otp"}`,
+        isLogin ? { challengeId, otp: fullOtp } : { email, otp: fullOtp },
         { withCredentials: true }
       );
 
       if (data?.success) {
+        removeSessionValue("login_otp_challenge");
+        removeSessionValue("otp_email");
+        if (data.token || data.accessToken) {
+          authStorage.setTokens(data.token || data.accessToken, data.refreshToken);
+        }
+        if (data.user) {
+          authStorage.setCachedUser(data.user);
+          dispatch(setuser(data.user));
+        }
         toast.success(data.message || "Account activated! Welcome to Lime.");
-        dispatch(setuser(data.user));
         navigate("/", { replace: true });
       }
     } catch (err) {
@@ -121,8 +155,8 @@ const VerifyOtp = () => {
       setResending(true);
       setErrorMsg("");
       const { data } = await axios.post(
-        `${serverUrl}/api/auth/resend-signup-otp`,
-        { email },
+        `${serverUrl}/api/auth/${isLogin ? "resend-login-otp" : "resend-signup-otp"}`,
+        isLogin ? { challengeId } : { email },
         { withCredentials: true }
       );
 
@@ -133,7 +167,11 @@ const VerifyOtp = () => {
         inputRefs.current[0]?.focus();
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Could not resend verification code.");
+      const response = err.response?.data;
+      if (response?.retryAfterSeconds) {
+        setTimer(response.retryAfterSeconds);
+      }
+      toast.error(response?.message || "Could not resend verification code.");
     } finally {
       setResending(false);
     }
@@ -149,9 +187,11 @@ const VerifyOtp = () => {
                 <ShieldCheck size={28} color="#84cc16" />
               </div>
               <h1 className="logo">Lime</h1>
-              <h2>Verify Your Email</h2>
+              <h2>{isLogin ? "Verify Your Sign-in" : "Verify Your Email"}</h2>
               <p className="auth-subtitle">
-                We sent a 6-digit verification code to
+                {isLogin
+                  ? "Enter the 6-digit sign-in code we sent to"
+                  : "We sent a 6-digit verification code to"}
                 <br />
                 <span className="email-highlight">{email || "your email"}</span>
               </p>
@@ -181,7 +221,13 @@ const VerifyOtp = () => {
                 className="register-btn"
                 disabled={loading || otp.join("").length !== 6}
               >
-                {loading ? <BeatLoader size={8} color="#fff" /> : "Verify & Activate Account"}
+                {loading ? (
+                  <BeatLoader size={8} color="#fff" />
+                ) : isLogin ? (
+                  "Verify & Sign In"
+                ) : (
+                  "Verify & Activate Account"
+                )}
               </button>
             </form>
 
@@ -204,8 +250,8 @@ const VerifyOtp = () => {
             </div>
 
             <div className="auth-footer-link">
-              <Link to="/register" className="back-link">
-                <ArrowLeft size={16} /> Back to Sign Up
+              <Link to={isLogin ? "/login" : "/register"} className="back-link">
+                <ArrowLeft size={16} /> {isLogin ? "Back to Sign In" : "Back to Sign Up"}
               </Link>
             </div>
           </div>

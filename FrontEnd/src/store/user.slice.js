@@ -1,19 +1,33 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-const savedTheme =
-  typeof window !== "undefined"
-    ? localStorage.getItem("lime_theme") || "dark"
-    : "dark";
+let savedTheme = "dark";
+if (typeof window !== "undefined") {
+  try {
+    savedTheme = window.localStorage.getItem("lime_theme") || "dark";
+  } catch (_error) {
+    savedTheme = "dark";
+  }
+}
+
+let initialUser = null;
+if (typeof window !== "undefined") {
+  try {
+    const cached = localStorage.getItem("lime_cached_user");
+    initialUser = cached ? JSON.parse(cached) : null;
+  } catch (_e) {
+    initialUser = null;
+  }
+}
 
 const initialState = {
-  user: null,
+  user: initialUser,
   loading: true,
   authVerificationError: null,
   theme: savedTheme,
   posts: [],
   userPosts: [],
   myLikes: [],
-  myBookmarks: [],
+  myBookmarks: initialUser?.bookmarks || [],
   mySuggestions: [],
   notifications: [],
   unreadNotificationsCount: 0,
@@ -41,6 +55,15 @@ const userSlice = createSlice({
     setAuthVerificationError: (state, action) => {
       state.authVerificationError = action.payload;
       state.loading = false;
+    },
+    setAuthLoading: (state, action) => {
+      state.loading = Boolean(action.payload);
+    },
+    setAuthState: (state, action) => {
+      const { user, loading = false } = action.payload || {};
+      state.user = user || null;
+      state.loading = Boolean(loading);
+      state.authVerificationError = null;
     },
     setTheme: (state, action) => {
       state.theme = action.payload;
@@ -245,6 +268,8 @@ export const {
   setUserPosts,
   setMySuggestion,
   setMyLikes,
+  setAuthLoading,
+  setAuthState,
   addLiked,
   removeLiked,
   addBookmark,

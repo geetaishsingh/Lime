@@ -1,9 +1,27 @@
 import User from "../models/user.model.js";
 import PendingSignup from "../models/pendingSignup.model.js";
-import { sendOtpmail, sendSignupOtpMail } from "../utils/mail.js";
-import getToken from "../utils/token.js";
+import {
+  sendLoginOtpMail,
+  sendOtpmail,
+  sendSignupOtpMail,
+} from "../utils/mail.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  rotateRefreshToken,
+  revokeRefreshToken,
+  revokeAllUserRefreshTokens,
+  getTokenCookieOptions,
+  getRefreshTokenCookieOptions,
+} from "../utils/token.js";
 import bcrypt from "bcryptjs";
-import { randomInt } from "node:crypto";
+import {
+  createHmac,
+  randomBytes,
+  randomInt,
+  timingSafeEqual,
+} from "node:crypto";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 // Helper to sanitize user object returned to client
 const sanitizeUser = (user) => ({
@@ -23,6 +41,16 @@ const sanitizeUser = (user) => ({
   posts: user.posts || [],
   bookmarks: user.bookmarks || [],
 });
+
+const hashOtp = (otp) =>
+  createHmac("sha256", getJwtSecret()).update(otp).digest("hex");
+
+const isSameHash = (firstHash, secondHash) => {
+  if (!firstHash || !secondHash || firstHash.length !== secondHash.length) {
+    return false;
+  }
+  return timingSafeEqual(Buffer.from(firstHash, "hex"), Buffer.from(secondHash, "hex"));
+};
 
 /**
  * Step 1: User Registration
@@ -216,18 +244,18 @@ export const verifySignupOtp = async (req, res) => {
       await user.save();
     }
 
-    const token = await getToken(user._id);
-    res.cookie("token", token, {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    });
+    const token = generateAccessToken(user._id);
+    const refreshToken = await generateRefreshToken(user._id);
+
+    res.cookie("token", token, getTokenCookieOptions());
+    res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
 
     return res.status(200).json({
       message: "Account verified successfully! Welcome to Lime.",
       user: sanitizeUser(user),
       token,
+      accessToken: token,
+      refreshToken,
       success: true,
     });
   } catch (error) {
@@ -319,6 +347,14 @@ export const login = async (req, res) => {
       });
     }
 
+    if (!user.password) {
+      return res.status(400).json({
+        message:
+          "This account uses Google or GitHub sign-in. Continue with that provider, or select Forgot password to set a password for this account.",
+        success: false,
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({
@@ -327,24 +363,188 @@ export const login = async (req, res) => {
       });
     }
 
-    // Direct password login without OTP requirement (preserved for signup and password recovery)
-    const token = await getToken(user._id);
-    res.cookie("token", token, {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
+    const otp = randomInt(100000, 1000000).toString();
+    const challengeId = randomBytes(32).toString("hex");
+    const now = new Date();
+    user.loginOtpHash = hashOtp(otp);
+    user.loginOtpExpires = new Date(now.getTime() + 10 * 60 * 1000);
+    user.loginOtpAttempts = 0;
+    user.loginOtpSentAt = now;
+    user.loginOtpChallengeHash = hashOtp(challengeId);
+    user.loginOtpChallengeExpires = new Date(now.getTime() + 10 * 60 * 1000);
+    await user.save();
+
+    try {
+      await sendLoginOtpMail(user.email, otp);
+    } catch (emailError) {
+      user.loginOtpHash = undefined;
+      user.loginOtpExpires = undefined;
+      user.loginOtpSentAt = undefined;
+      user.loginOtpChallengeHash = undefined;
+      user.loginOtpChallengeExpires = undefined;
+      await user.save();
+      return res.status(503).json({
+        message: emailError.message,
+        success: false,
+      });
+    }
+
+    return res.status(200).json({
+      message: `A sign-in code was sent to ${user.email}.`,
+      success: true,
+      requiresOtp: true,
+      email: user.email,
+      challengeId,
     });
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({ message: `Login error: ${error.message}`, success: false });
+  }
+};
+
+export const verifyLoginOtp = async (req, res) => {
+  try {
+    const { challengeId, otp } = req.body;
+    if (!challengeId || !otp) {
+      return res.status(400).json({
+        message: "Sign-in challenge and verification code are required.",
+        success: false,
+      });
+    }
+
+    const user = await User.findOne({
+      loginOtpChallengeHash: hashOtp(challengeId),
+    });
+    if (!user || !user.loginOtpChallengeExpires || user.loginOtpChallengeExpires < new Date()) {
+      return res.status(400).json({
+        message: "This sign-in code has expired. Please sign in again.",
+        success: false,
+      });
+    }
+
+    if (!user.loginOtpExpires || user.loginOtpExpires < new Date()) {
+      return res.status(400).json({
+        message: "Sign-in code expired. Request a new one.",
+        success: false,
+      });
+    }
+
+    if ((user.loginOtpAttempts || 0) >= 5) {
+      return res.status(429).json({
+        message: "Too many incorrect codes. Request a new sign-in code.",
+        success: false,
+      });
+    }
+
+    if (!isSameHash(user.loginOtpHash, hashOtp(otp.toString().trim()))) {
+      user.loginOtpAttempts = (user.loginOtpAttempts || 0) + 1;
+      await user.save();
+      return res.status(400).json({
+        message: `Incorrect code. ${5 - user.loginOtpAttempts} attempts remaining.`,
+        success: false,
+      });
+    }
+
+    user.loginOtpHash = undefined;
+    user.loginOtpExpires = undefined;
+    user.loginOtpAttempts = 0;
+    user.loginOtpSentAt = undefined;
+    user.loginOtpChallengeHash = undefined;
+    user.loginOtpChallengeExpires = undefined;
+    await user.save();
+
+    const token = generateAccessToken(user._id);
+    const refreshToken = await generateRefreshToken(user._id);
+    res.cookie("token", token, getTokenCookieOptions());
+    res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
 
     return res.status(200).json({
       message: `Welcome back, @${user.username}!`,
       success: true,
       user: sanitizeUser(user),
       token,
+      accessToken: token,
+      refreshToken,
     });
   } catch (error) {
-    console.error("Login error:", error);
-    return res.status(500).json({ message: `Login error: ${error.message}`, success: false });
+    console.error("Verify login OTP error:", error);
+    return res.status(500).json({
+      message: `Could not verify sign-in code: ${error.message}`,
+      success: false,
+    });
+  }
+};
+
+export const resendLoginOtp = async (req, res) => {
+  try {
+    const { challengeId } = req.body;
+    if (!challengeId) {
+      return res.status(400).json({
+        message: "Sign-in challenge is missing. Please sign in again.",
+        success: false,
+      });
+    }
+
+    const user = await User.findOne({
+      loginOtpChallengeHash: hashOtp(challengeId),
+    });
+    if (!user || !user.loginOtpChallengeExpires || user.loginOtpChallengeExpires < new Date()) {
+      return res.status(400).json({
+        message: "This sign-in session has expired. Please sign in again.",
+        success: false,
+      });
+    }
+
+    const cooldownMs = 60 * 1000;
+    const remainingMs = cooldownMs - (Date.now() - new Date(user.loginOtpSentAt || 0).getTime());
+    if (remainingMs > 0) {
+      return res.status(429).json({
+        message: "Please wait before requesting another code.",
+        retryAfterSeconds: Math.ceil(remainingMs / 1000),
+        success: false,
+      });
+    }
+
+    const otp = randomInt(100000, 1000000).toString();
+    const previousOtp = {
+      hash: user.loginOtpHash,
+      expires: user.loginOtpExpires,
+      attempts: user.loginOtpAttempts,
+      sentAt: user.loginOtpSentAt,
+      challengeExpires: user.loginOtpChallengeExpires,
+    };
+    user.loginOtpHash = hashOtp(otp);
+    user.loginOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    user.loginOtpAttempts = 0;
+    user.loginOtpSentAt = new Date();
+    user.loginOtpChallengeExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    try {
+      await sendLoginOtpMail(user.email, otp);
+    } catch (emailError) {
+      user.loginOtpHash = previousOtp.hash;
+      user.loginOtpExpires = previousOtp.expires;
+      user.loginOtpAttempts = previousOtp.attempts;
+      user.loginOtpSentAt = previousOtp.sentAt;
+      user.loginOtpChallengeExpires = previousOtp.challengeExpires;
+      await user.save();
+      return res.status(503).json({
+        message: emailError.message,
+        success: false,
+      });
+    }
+
+    return res.status(200).json({
+      message: `A new sign-in code was sent to ${user.email}.`,
+      success: true,
+    });
+  } catch (error) {
+    console.error("Resend login OTP error:", error);
+    return res.status(500).json({
+      message: `Could not resend sign-in code: ${error.message}`,
+      success: false,
+    });
   }
 };
 
@@ -353,14 +553,75 @@ export const login = async (req, res) => {
  */
 export const logout = async (req, res) => {
   try {
-    res.clearCookie("token", {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      httpOnly: true,
-    });
+    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+    if (refreshToken) {
+      await revokeRefreshToken(refreshToken);
+    }
+    if (req.userId) {
+      await revokeAllUserRefreshTokens(req.userId);
+    }
+    res.clearCookie("token", getTokenCookieOptions());
+    res.clearCookie("refreshToken", getRefreshTokenCookieOptions());
     return res.status(200).json({ message: "Logged out successfully", success: true });
   } catch (error) {
     return res.status(500).json({ message: `Logout error: ${error.message}`, success: false });
+  }
+};
+
+/**
+ * Token Refresh Controller
+ */
+export const refreshTokenController = async (req, res) => {
+  try {
+    const rawRefreshToken =
+      req.cookies?.refreshToken ||
+      req.body?.refreshToken ||
+      req.headers["x-refresh-token"];
+
+    if (!rawRefreshToken) {
+      return res.status(401).json({
+        message: "Refresh token required.",
+        code: "REFRESH_TOKEN_REQUIRED",
+        success: false,
+      });
+    }
+
+    const rotated = await rotateRefreshToken(rawRefreshToken);
+    if (!rotated) {
+      res.clearCookie("token", getTokenCookieOptions());
+      res.clearCookie("refreshToken", getRefreshTokenCookieOptions());
+      return res.status(401).json({
+        message: "Invalid or expired session. Please sign in again.",
+        code: "REFRESH_TOKEN_INVALID",
+        success: false,
+      });
+    }
+
+    const user = await User.findById(rotated.userId).select("-password -signupOtp -resetOtp");
+    if (!user) {
+      return res.status(401).json({
+        message: "User account no longer exists.",
+        code: "USER_NOT_FOUND",
+        success: false,
+      });
+    }
+
+    res.cookie("token", rotated.accessToken, getTokenCookieOptions());
+    res.cookie("refreshToken", rotated.refreshToken, getRefreshTokenCookieOptions());
+
+    return res.status(200).json({
+      success: true,
+      token: rotated.accessToken,
+      accessToken: rotated.accessToken,
+      refreshToken: rotated.refreshToken,
+      user: sanitizeUser(user),
+    });
+  } catch (error) {
+    console.error("[Lime Auth] Refresh request error:", error.message);
+    return res.status(500).json({
+      message: `Token refresh error: ${error.message}`,
+      success: false,
+    });
   }
 };
 
@@ -490,9 +751,19 @@ export const resetPassword = async (req, res) => {
 
     
     const hashPassword = await bcrypt.hash(newpassword, 10);
+    await revokeAllUserRefreshTokens(user._id);
     user.password = hashPassword;
     user.isOtpVerified = false;
+    user.loginOtpHash = undefined;
+    user.loginOtpExpires = undefined;
+    user.loginOtpAttempts = 0;
+    user.loginOtpSentAt = undefined;
+    user.loginOtpChallengeHash = undefined;
+    user.loginOtpChallengeExpires = undefined;
     await user.save();
+
+    res.clearCookie("token", getTokenCookieOptions());
+    res.clearCookie("refreshToken", getRefreshTokenCookieOptions());
 
     return res.status(200).json({
       message: "Password changed successfully! You can now log in.",
@@ -511,16 +782,15 @@ export const googleCallback = async (req, res) => {
     if (!user) {
       return res.redirect(`${clientUrl}/login`);
     }
-    const token = await getToken(user._id);
-    res.cookie("token", token, {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
-    return res.redirect(`${clientUrl}/`);
+    const token = generateAccessToken(user._id);
+    const refreshToken = await generateRefreshToken(user._id);
+
+    res.cookie("token", token, getTokenCookieOptions());
+    res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
+
+    return res.redirect(`${clientUrl}/#token=${token}&refreshToken=${refreshToken}`);
   } catch (error) {
-    console.error("Google Callback Error:", error);
+    console.error("[Lime Auth] Google Callback Error:", error);
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
     return res.redirect(`${clientUrl}/login`);
   }
@@ -533,16 +803,15 @@ export const githubCallback = async (req, res) => {
     if (!user) {
       return res.redirect(`${clientUrl}/login`);
     }
-    const token = await getToken(user._id);
-    res.cookie("token", token, {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
-    return res.redirect(`${clientUrl}/`);
+    const token = generateAccessToken(user._id);
+    const refreshToken = await generateRefreshToken(user._id);
+
+    res.cookie("token", token, getTokenCookieOptions());
+    res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
+
+    return res.redirect(`${clientUrl}/#token=${token}&refreshToken=${refreshToken}`);
   } catch (error) {
-    console.error("GitHub Callback Error:", error);
+    console.error("[Lime Auth] GitHub Callback Error:", error);
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
     return res.redirect(`${clientUrl}/login`);
   }

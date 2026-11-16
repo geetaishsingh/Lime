@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import { BeatLoader } from "react-spinners";
 import { serverUrl } from "../../config";
 import { setuser } from "../../store/user.slice";
+import authStorage from "../../utils/authStorage";
 import LimeMascot from "../../components/common/LimeMascot/LimeMascot";
 
 // OAuth base URL — points to loginSystem backend (port 3000) for Google/GitHub OAuth
@@ -58,7 +59,27 @@ const Login = () => {
       );
 
       if (data?.success) {
-        dispatch(setuser(data.user));
+        if (data.requiresOtp && data.challengeId && data.email) {
+          try {
+            sessionStorage.setItem("otp_email", data.email);
+            sessionStorage.setItem("login_otp_challenge", data.challengeId);
+          } catch (_storageError) {
+            // Router state keeps the active verification flow usable in restricted storage modes.
+          }
+          toast.success(data.message || "Sign-in code sent to your email.");
+          navigate("/verify-otp?mode=login", {
+            state: { email: data.email, challengeId: data.challengeId },
+          });
+          return;
+        }
+
+        if (data.token || data.accessToken) {
+          authStorage.setTokens(data.token || data.accessToken, data.refreshToken);
+        }
+        if (data.user) {
+          authStorage.setCachedUser(data.user);
+          dispatch(setuser(data.user));
+        }
         toast.success(data.message || `Welcome back!`);
         navigate("/");
       }
@@ -164,7 +185,7 @@ const Login = () => {
                 ) : (
                   <>
                     <span className="desktop-btn-text">Sign In to Lime</span>
-                    <span className="mobile-btn-text">Let&apos;s Plopp!</span>
+                    <span className="mobile-btn-text">Let&apos;s go!</span>
                   </>
                 )}
               </button>

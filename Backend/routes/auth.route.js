@@ -2,6 +2,8 @@ import express from "express";
 import passport from "passport";
 import {
   login,
+  verifyLoginOtp,
+  resendLoginOtp,
   logout,
   register,
   resetPassword,
@@ -11,6 +13,7 @@ import {
   resendSignupOtp,
   googleCallback,
   githubCallback,
+  refreshTokenController,
 } from "../controllers/auth.controller.js";
 
 const authRoute = express.Router();
@@ -20,7 +23,9 @@ authRoute.post("/register", register);
 authRoute.post("/verify-signup-otp", verifySignupOtp);
 authRoute.post("/resend-signup-otp", resendSignupOtp);
 authRoute.post("/login", login);
-authRoute.get("/logout", logout);
+authRoute.post("/verify-login-otp", verifyLoginOtp);
+authRoute.post("/resend-login-otp", resendLoginOtp);
+authRoute.post("/refresh", refreshTokenController);
 authRoute.post("/logout", logout);
 authRoute.post("/send-otp", sendOtp);
 authRoute.post("/verify-otp", VerifyOtp);

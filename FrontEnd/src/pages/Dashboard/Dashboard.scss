@@ -44,6 +44,28 @@
     padding-bottom: 84px; /* Space for the floating dock nav */
   }
 
+  /* Full-bleed active chat mode on mobile: no top header, no dock, full viewport */
+  .dashboard-container.mobile-chat-active {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+
+    .container {
+      height: 100%;
+    }
+
+    .dashboard-inner-container {
+      padding-bottom: 0;
+      height: 100%;
+      min-height: 100dvh;
+    }
+
+    .main-content-area {
+      height: 100%;
+      min-height: 0;
+    }
+  }
+
   /* Mobile Top Sticky Bar */
   .mobile-top-header {
     display: flex;

@@ -80,7 +80,11 @@ const Register = () => {
       if (data?.success) {
         const normalizedEmail = email.trim();
         toast.success(data.message || "OTP sent to your email!");
-        sessionStorage.setItem("otp_email", normalizedEmail);
+        try {
+          sessionStorage.setItem("otp_email", normalizedEmail);
+        } catch (_storageError) {
+          // The email is also passed in the URL for restricted storage modes.
+        }
         navigate(`/verify-otp?email=${encodeURIComponent(normalizedEmail)}`);
       }
     } catch (err) {
@@ -205,7 +209,7 @@ const Register = () => {
                 ) : (
                   <>
                     <span className="desktop-btn-text">Sign Up with Email</span>
-                    <span className="mobile-btn-text">Let&apos;s Plopp!</span>
+                    <span className="mobile-btn-text">Let&apos;s go!</span>
                   </>
                 )}
               </button>

@@ -33,7 +33,8 @@
     background: linear-gradient(180deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0) 100%);
 
     @media (max-width: 640px) {
-      padding: 16px 18px;
+      padding: 20px 18px 16px;
+      top: 0;
     }
 
     .call-header-back-btn {
