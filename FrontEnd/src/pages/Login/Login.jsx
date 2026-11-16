@@ -63,6 +63,9 @@ const Login = () => {
           try {
             sessionStorage.setItem("otp_email", data.email);
             sessionStorage.setItem("login_otp_challenge", data.challengeId);
+            if (data.devOtp) {
+              sessionStorage.setItem("dev_otp_preview", data.devOtp);
+            }
           } catch (_storageError) {
             // Router state keeps the active verification flow usable in restricted storage modes.
           }

@@ -274,34 +274,101 @@
 
         // Permission Card (Problem 2)
         .call-permission-card {
-          margin-top: 18px;
-          padding: 16px 20px;
-          border-radius: 18px;
-          background: rgba(24, 24, 27, 0.92);
-          border: 1.5px solid rgba(234, 179, 8, 0.5);
-          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
+          margin-top: 14px;
+          padding: 18px 18px 16px;
+          border-radius: 20px;
+          background: rgba(18, 18, 22, 0.94);
+          border: 1.5px solid rgba(234, 179, 8, 0.55);
+          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75), 0 0 20px rgba(234, 179, 8, 0.15);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
           width: 100%;
-          max-width: 320px;
+          max-width: 330px;
           animation: call-fade-in 0.3s ease-out;
 
           .call-permission-card-icon {
             display: flex;
             align-items: center;
             justify-content: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(234, 179, 8, 0.15);
+            border: 1px solid rgba(234, 179, 8, 0.3);
+          }
+
+          .call-permission-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #fef08a;
+            margin: 0;
+            text-align: center;
           }
 
           .call-permission-card-text {
-            font-size: 12.5px;
+            font-size: 12px;
             color: #d4d4d8;
-            line-height: 1.5;
+            line-height: 1.45;
             text-align: center;
             margin: 0;
+          }
+
+          .call-permission-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin: 4px 0 6px;
+
+            .call-permission-step {
+              display: flex;
+              align-items: flex-start;
+              gap: 8px;
+              text-align: left;
+
+              .step-num {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 18px;
+                height: 18px;
+                min-width: 18px;
+                border-radius: 50%;
+                background: #eab308;
+                color: #000;
+                font-size: 11px;
+                font-weight: 800;
+                line-height: 1;
+                margin-top: 1px;
+              }
+
+              .step-text {
+                font-size: 11.5px;
+                line-height: 1.4;
+                color: #e4e4e7;
+
+                strong {
+                  color: #fff;
+                  font-weight: 600;
+                }
+              }
+            }
+          }
+
+          .call-permission-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+            margin-top: 4px;
           }
 
           .call-permission-btn {
@@ -313,25 +380,78 @@
             color: #09090b;
             font-weight: 700;
             font-size: 13.5px;
-            padding: 10px 20px;
+            padding: 11px 20px;
             border-radius: 999px;
             border: none;
             cursor: pointer;
             box-shadow: 0 4px 16px rgba(132, 204, 22, 0.4);
             transition: all $transition-fast;
+            width: 100%;
 
             &:hover {
-              transform: scale(1.04);
+              transform: scale(1.02);
               filter: brightness(1.1);
             }
 
             &:active {
-              transform: scale(0.96);
+              transform: scale(0.97);
             }
 
             &:disabled {
               opacity: 0.6;
               cursor: not-allowed;
+            }
+          }
+
+          .call-permission-guide-trigger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            background: rgba(234, 179, 8, 0.12);
+            color: #fef08a;
+            font-weight: 600;
+            font-size: 12px;
+            padding: 8px 16px;
+            border-radius: 999px;
+            border: 1px dashed rgba(234, 179, 8, 0.4);
+            cursor: pointer;
+            transition: all $transition-fast;
+            width: 100%;
+
+            &:hover {
+              background: rgba(234, 179, 8, 0.22);
+              color: #fff;
+            }
+
+            &:active {
+              transform: scale(0.97);
+            }
+          }
+
+          .call-permission-reload-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #f4f4f5;
+            font-weight: 600;
+            font-size: 12.5px;
+            padding: 9px 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            cursor: pointer;
+            transition: all $transition-fast;
+            width: 100%;
+
+            &:hover {
+              background: rgba(255, 255, 255, 0.14);
+              color: #fff;
+            }
+
+            &:active {
+              transform: scale(0.97);
             }
           }
         }
@@ -467,6 +587,161 @@
       }
     }
   }
+
+  // Visual Guide Modal (Problem 2 UX)
+  .call-guide-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    animation: call-fade-in 0.25s ease-out;
+
+    .call-guide-modal {
+      position: relative;
+      background: #141417;
+      border: 1.5px solid rgba(255, 255, 255, 0.14);
+      border-radius: 24px;
+      padding: 24px 20px 20px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(132, 204, 22, 0.15);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      animation: call-scale-up 0.25s ease-out;
+
+      .call-guide-top-pointer {
+        position: absolute;
+        top: -46px;
+        right: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #eab308;
+        color: #000;
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 800;
+        box-shadow: 0 4px 16px rgba(234, 179, 8, 0.5);
+        animation: call-pointer-bounce 1.5s infinite ease-in-out;
+
+        .pointer-arrow {
+          stroke-width: 2.6;
+        }
+      }
+
+      .call-guide-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        .call-guide-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: #fef08a;
+          font-weight: 700;
+          font-size: 15px;
+        }
+
+        .call-guide-close-btn {
+          background: rgba(255, 255, 255, 0.08);
+          border: none;
+          color: #a1a1aa;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all $transition-fast;
+
+          &:hover {
+            background: rgba(255, 255, 255, 0.18);
+            color: #fff;
+          }
+        }
+      }
+
+      .call-guide-subtitle {
+        font-size: 12px;
+        color: #a1a1aa;
+        line-height: 1.45;
+        margin: 0;
+      }
+
+      .call-guide-steps-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+
+        .call-guide-step-card {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.07);
+          border-radius: 14px;
+          padding: 10px 14px;
+
+          .step-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            min-width: 22px;
+            border-radius: 50%;
+            background: var(--lime-accent, #84cc16);
+            color: #09090b;
+            font-weight: 800;
+            font-size: 12px;
+            margin-top: 2px;
+          }
+
+          .step-content {
+            h5 {
+              margin: 0 0 3px 0;
+              font-size: 13px;
+              font-weight: 700;
+              color: #f4f4f5;
+            }
+
+            p {
+              margin: 0;
+              font-size: 11.5px;
+              color: #a1a1aa;
+              line-height: 1.35;
+
+              strong {
+                color: #e4e4e7;
+              }
+
+              em {
+                color: #ef4444;
+                font-style: normal;
+              }
+            }
+          }
+        }
+      }
+
+      .call-guide-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 4px;
+      }
+    }
+  }
 }
 
 // Keyframe Animations
@@ -504,5 +779,25 @@
   50% {
     transform: scale(1.06);
     box-shadow: 0 0 16px 4px rgba(234, 179, 8, 0.35);
+  }
+}
+
+@keyframes call-pointer-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes call-scale-up {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }

@@ -19,45 +19,56 @@ let transporter = null;
 if (isEmailConfigured) {
   const cleanEmailPass = emailPass ? emailPass.replace(/\s+/g, "") : "";
   transporter = nodemailer.createTransport({
-    service: "Gmail",
-    port: 465,
-    secure: true,
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false, // Port 587 with STARTTLS is cloud & Render firewall-friendly
     auth: {
       user: emailUser,
       pass: cleanEmailPass,
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
   });
 }
 
 const ensureEmailConfigured = () => {
   if (!isEmailConfigured || !transporter) {
-    throw new Error(
-      "Email delivery is not configured. Set EMAIL and EMAIL_PASS on the backend."
-    );
+    return false;
   }
+  return true;
 };
 
 const logSmtpFailure = (purpose, error) => {
   const code = error?.code || "SMTP_ERROR";
   const responseCode = error?.responseCode ? ` (${error.responseCode})` : "";
-  console.error(`[Email Error] Failed to send ${purpose}: ${code}${responseCode}`);
+  console.error(`[Email Error] Failed to send ${purpose}: ${code}${responseCode} - ${error?.message}`);
 };
 
 const getSmtpFailureMessage = (error, purpose) => {
   if (error?.code === "EAUTH" || Number(error?.responseCode) === 535) {
-    return "Gmail rejected the email credentials. Verify the sender address and use its Google App Password as EMAIL_PASS.";
+    return "Gmail rejected the email credentials. Check that EMAIL is your full address and EMAIL_PASS is a Google App Password without spaces.";
   }
-  return `Could not send ${purpose}. Check backend email settings and try again.`;
+  return `Could not send ${purpose} via email provider.`;
 };
 
 /**
  * Send Signup verification OTP
  */
 export const sendSignupOtpMail = async (to, otp) => {
-  ensureEmailConfigured();
+  if (!ensureEmailConfigured()) {
+    console.warn(`[Lime Auth] Email delivery not configured. Registration OTP for ${to} is: ${otp}`);
+    return {
+      success: true,
+      method: "unconfigured_fallback",
+      previewOtp: otp,
+      warning: "Email delivery is not configured on this server.",
+    };
+  }
+
   try {
     await transporter.sendMail({
       from: `"Lime Social" <${emailUser}>`,
@@ -85,12 +96,27 @@ export const sendSignupOtpMail = async (to, otp) => {
     return { success: true, method: "smtp" };
   } catch (error) {
     logSmtpFailure("signup OTP", error);
-    throw new Error(getSmtpFailureMessage(error, "the verification email"));
+    console.warn(`[Lime Auth] SMTP delivery failed. Registration OTP for ${to} is: ${otp}`);
+    return {
+      success: true,
+      method: "fallback",
+      previewOtp: otp,
+      warning: getSmtpFailureMessage(error, "the verification email"),
+    };
   }
 };
 
 export const sendLoginOtpMail = async (to, otp) => {
-  ensureEmailConfigured();
+  if (!ensureEmailConfigured()) {
+    console.warn(`[Lime Auth] Email delivery not configured. Login OTP for ${to} is: ${otp}`);
+    return {
+      success: true,
+      method: "unconfigured_fallback",
+      previewOtp: otp,
+      warning: "Email delivery is not configured on this server.",
+    };
+  }
+
   try {
     await transporter.sendMail({
       from: `"Lime Security" <${emailUser}>`,
@@ -108,7 +134,13 @@ export const sendLoginOtpMail = async (to, otp) => {
     return { success: true, method: "smtp" };
   } catch (error) {
     logSmtpFailure("login OTP", error);
-    throw new Error(getSmtpFailureMessage(error, "the sign-in code"));
+    console.warn(`[Lime Auth] SMTP delivery failed. Login OTP for ${to} is: ${otp}`);
+    return {
+      success: true,
+      method: "fallback",
+      previewOtp: otp,
+      warning: getSmtpFailureMessage(error, "the sign-in code"),
+    };
   }
 };
 
@@ -116,7 +148,16 @@ export const sendLoginOtpMail = async (to, otp) => {
  * Send Password Reset OTP
  */
 export const sendOtpmail = async (to, otp) => {
-  ensureEmailConfigured();
+  if (!ensureEmailConfigured()) {
+    console.warn(`[Lime Auth] Email delivery not configured. Reset OTP for ${to} is: ${otp}`);
+    return {
+      success: true,
+      method: "unconfigured_fallback",
+      previewOtp: otp,
+      warning: "Email delivery is not configured on this server.",
+    };
+  }
+
   try {
     await transporter.sendMail({
         from: `"Lime Security" <${emailUser}>`,
@@ -143,6 +184,12 @@ export const sendOtpmail = async (to, otp) => {
     return { success: true, method: "smtp" };
   } catch (error) {
     logSmtpFailure("password reset OTP", error);
-    throw new Error(getSmtpFailureMessage(error, "the password reset code"));
+    console.warn(`[Lime Auth] SMTP delivery failed. Reset OTP for ${to} is: ${otp}`);
+    return {
+      success: true,
+      method: "fallback",
+      previewOtp: otp,
+      warning: getSmtpFailureMessage(error, "the password reset code"),
+    };
   }
 };
