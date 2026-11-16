@@ -118,6 +118,16 @@ axios.interceptors.response.use(
       }
     }
 
+    // Auto-retry transient 503/502/network errors during Render container wakeup (cold start)
+    const isColdStart =
+      status === 503 || status === 502 || error.code === "ERR_NETWORK";
+    if (isColdStart && (!originalRequest._retry503Count || originalRequest._retry503Count < 2)) {
+      originalRequest._retry503Count = (originalRequest._retry503Count || 0) + 1;
+      const delay = originalRequest._retry503Count === 1 ? 1500 : 2500;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return axios(originalRequest);
+    }
+
     return Promise.reject(error);
   }
 );

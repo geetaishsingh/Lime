@@ -28,12 +28,6 @@ const pendingSignupSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  phone: {
-    type: String,
-    unique: true,
-    sparse: true,
-    trim: true,
-  },
 
   otp: {
     type: String,

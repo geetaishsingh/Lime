@@ -113,10 +113,19 @@ app.use("/api", (req, res, next) => {
   return next();
 });
 
-app.use("/api", (req, res, next) => {
+app.use("/api", async (req, res, next) => {
+  // If database is currently establishing connection (readyState 2), wait briefly before rejecting
+  if (mongoose.connection.readyState === 2) {
+    let attempts = 0;
+    while (mongoose.connection.readyState === 2 && attempts < 12) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      attempts++;
+    }
+  }
+
   if (mongoose.connection.readyState !== 1) {
     return res.status(503).json({
-      message: "Database is unavailable. Check the MongoDB connection and try again.",
+      message: "Database is temporarily connecting or unavailable. Please try again in a moment.",
       success: false,
     });
   }
@@ -153,16 +162,19 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start Server
+// Start HTTP server immediately so cloud host (Render) health checks succeed without 503
+server.listen(PORT, () => {
+  console.log(`[Lime Server] HTTP Server listening on port ${PORT}`);
+});
+
+// Connect to MongoDB
 connectDb()
   .then(() => {
+    console.log("[Lime Server] MongoDB Connected successfully");
     initChatCleanup(); // Automatically sweeps expired 24h chats & attachments
-    server.listen(PORT);
   })
-  .catch(async (error) => {
-    console.error("MongoDB Connection Failed:", error.message);
-    await mongoose.disconnect();
-    process.exitCode = 1;
+  .catch((error) => {
+    console.error("[Lime Server] MongoDB Connection Error:", error.message);
   });
 
 export { app, server };

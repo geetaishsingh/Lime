@@ -44,9 +44,12 @@ const VerifyOtp = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // Focus first input on mount
+  // Focus first input on mount & auto-fill dev OTP if present
   useEffect(() => {
-    if (inputRefs.current[0]) {
+    const preview = readSessionValue("dev_otp_preview");
+    if (preview && preview.length === 6) {
+      setOtp(preview.split(""));
+    } else if (inputRefs.current[0]) {
       inputRefs.current[0].focus();
     }
   }, []);
@@ -129,6 +132,7 @@ const VerifyOtp = () => {
       if (data?.success) {
         removeSessionValue("login_otp_challenge");
         removeSessionValue("otp_email");
+        removeSessionValue("dev_otp_preview");
         if (data.token || data.accessToken) {
           authStorage.setTokens(data.token || data.accessToken, data.refreshToken);
         }

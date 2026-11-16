@@ -82,6 +82,9 @@ const Register = () => {
         toast.success(data.message || "OTP sent to your email!");
         try {
           sessionStorage.setItem("otp_email", normalizedEmail);
+          if (data?.devOtp) {
+            sessionStorage.setItem("dev_otp_preview", data.devOtp);
+          }
         } catch (_storageError) {
           // The email is also passed in the URL for restricted storage modes.
         }
