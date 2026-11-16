@@ -187,13 +187,9 @@ export const sendLoginOtpMail = async (to, otp) => {
  */
 export const sendOtpmail = async (to, otp) => {
   if (!ensureEmailConfigured()) {
-    console.warn(`[Lime Auth] Email delivery not configured. Reset OTP for ${to} is: ${otp}`);
-    return {
-      success: true,
-      method: "unconfigured_fallback",
-      previewOtp: otp,
-      warning: "Email delivery is not configured on this server.",
-    };
+    throw new Error(
+      "Email delivery is not configured. Set EMAIL and EMAIL_PASS on the backend."
+    );
   }
 
   try {
@@ -222,12 +218,6 @@ export const sendOtpmail = async (to, otp) => {
     return { success: true, method: "smtp" };
   } catch (error) {
     logSmtpFailure("password reset OTP", error);
-    console.warn(`[Lime Auth] SMTP delivery failed. Reset OTP for ${to} is: ${otp}`);
-    return {
-      success: true,
-      method: "fallback",
-      previewOtp: otp,
-      warning: getSmtpFailureMessage(error, "the password reset code"),
-    };
+    throw new Error(getSmtpFailureMessage(error, "the password reset code"));
   }
 };

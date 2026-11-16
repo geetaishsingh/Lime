@@ -685,29 +685,32 @@ export const sendOtp = async (req, res) => {
       });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = randomInt(100000, 1000000).toString();
     user.resetOtp = otp;
     user.resetOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
     user.resetOtpAttempts = 0;
     user.isOtpVerified = false;
     await user.save();
 
-    const mailResult = await sendOtpmail(cleanEmail, otp);
-
-    const responsePayload = {
-      message: mailResult?.warning
-        ? "Recovery code generated. If you don't receive an email, use the code displayed below."
-        : "Password reset code sent to your email. Check your Inbox and Spam folder.",
-      success: true,
-      email: cleanEmail,
-    };
-
-    if (mailResult?.previewOtp) {
-      responsePayload.previewOtp = mailResult.previewOtp;
-      responsePayload.warning = mailResult.warning;
+    try {
+      await sendOtpmail(cleanEmail, otp);
+    } catch (error) {
+      user.resetOtp = undefined;
+      user.resetOtpExpires = undefined;
+      user.resetOtpAttempts = 0;
+      user.isOtpVerified = false;
+      await user.save();
+      return res.status(503).json({
+        message: error.message,
+        success: false,
+      });
     }
 
-    return res.status(200).json(responsePayload);
+    return res.status(200).json({
+      message: "Password reset code sent to your email. Check your Inbox and Spam folder.",
+      success: true,
+      email: cleanEmail,
+    });
   } catch (error) {
     return res.status(500).json({ message: `Failed to send reset code: ${error.message}`, success: false });
   }
