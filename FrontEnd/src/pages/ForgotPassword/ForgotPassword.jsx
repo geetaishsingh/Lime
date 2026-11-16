@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { IoEye } from "react-icons/io5";
 import { IoMdEyeOff } from "react-icons/io";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ShieldCheck } from "lucide-react";
 import axios from "axios";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
@@ -12,6 +12,29 @@ import { serverUrl } from "../../config";
 import LimeMascot from "../../components/common/LimeMascot/LimeMascot";
 import limeLogoFull from "../../assets/lime-logo-full.png";
 import limeLogoFullLight from "../../assets/lime-logo-full-light.png";
+
+// Retry helper with progressive back-off — handles Render free-tier 503 cold starts
+const retryPost = async (url, body, opts, maxAttempts = 6) => {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await axios.post(url, body, opts);
+    } catch (err) {
+      lastErr = err;
+      const status = err?.response?.status;
+      const code = err?.code;
+      const isTransient =
+        status === 503 ||
+        status === 502 ||
+        code === "ERR_NETWORK" ||
+        code === "ECONNABORTED";
+      if (!isTransient || attempt === maxAttempts) throw err;
+      // Progressive delay: 2.5s, 5s, 7.5s, 10s, 12.5s
+      await new Promise((r) => setTimeout(r, attempt * 2500));
+    }
+  }
+  throw lastErr;
+};
 
 const ForgotPassword = () => {
   const [step, setStep] = useState(1); // 1: Email, 2: OTP, 3: New Password, 4: Success
@@ -26,10 +49,48 @@ const ForgotPassword = () => {
   const [resending, setResending] = useState(false);
   const [timer, setTimer] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
+  const [devOtpCode, setDevOtpCode] = useState("");
+  const [otpWarning, setOtpWarning] = useState("");
+  const [wakeStatus, setWakeStatus] = useState(""); // "" | "waking" | "ready"
 
   const inputRefs = useRef([]);
   const navigate = useNavigate();
   const theme = useSelector((state) => state.user.theme);
+
+  // Ping backend on mount to pre-warm Render free tier
+  useEffect(() => {
+    let cancelled = false;
+    const ping = async () => {
+      try {
+        const { data } = await axios.get(`${serverUrl}/`, {
+          withCredentials: false,
+          timeout: 8000,
+        });
+        if (!cancelled) {
+          if (data?.status === "Healthy") {
+            setWakeStatus("ready");
+            setTimeout(() => { if (!cancelled) setWakeStatus(""); }, 2000);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setWakeStatus("waking");
+          try {
+            await new Promise((r) => setTimeout(r, 12000));
+            await axios.get(`${serverUrl}/`, { withCredentials: false, timeout: 20000 });
+            if (!cancelled) {
+              setWakeStatus("ready");
+              setTimeout(() => { if (!cancelled) setWakeStatus(""); }, 2000);
+            }
+          } catch {
+            if (!cancelled) setWakeStatus("");
+          }
+        }
+      }
+    };
+    ping();
+    return () => { cancelled = true; };
+  }, []);
 
   // Timer countdown for resending recovery OTP
   useEffect(() => {
@@ -56,8 +117,6 @@ const ForgotPassword = () => {
     nextOtp[index] = value ? value.slice(-1) : "";
     setOtp(nextOtp);
     setErrorMsg("");
-
-    // Auto advance
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -73,19 +132,17 @@ const ForgotPassword = () => {
     e.preventDefault();
     const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
     if (!pasted) return;
-
     const nextOtp = [...otp];
     pasted.split("").forEach((char, idx) => {
       if (idx < 6) nextOtp[idx] = char;
     });
     setOtp(nextOtp);
     setErrorMsg("");
-
     const targetIdx = Math.min(pasted.length, 5);
     inputRefs.current[targetIdx]?.focus();
   };
 
-  // STEP 1: Send Recovery OTP
+  // STEP 1: Send Recovery OTP (with wakeup-aware retry)
   const handleSendOtp = async (e) => {
     if (e) e.preventDefault();
     const trimmedEmail = email.trim().toLowerCase();
@@ -97,20 +154,43 @@ const ForgotPassword = () => {
     try {
       setLoading(true);
       setErrorMsg("");
-      const { data } = await axios.post(
+      if (wakeStatus !== "ready") setWakeStatus("waking");
+
+      const { data } = await retryPost(
         `${serverUrl}/api/auth/send-otp`,
         { email: trimmedEmail },
-        { withCredentials: true }
+        { withCredentials: true, timeout: 30000 }
       );
 
+      setWakeStatus("ready");
+      setTimeout(() => setWakeStatus(""), 1500);
+
       if (data?.success) {
-        toast.success(data.message || "Recovery code sent to your email!");
+        if (data?.previewOtp) {
+          setDevOtpCode(data.previewOtp);
+          setOtpWarning(data.warning || "");
+          setOtp(data.previewOtp.split(""));
+          toast(`Email fallback active — your code: ${data.previewOtp}`, {
+            icon: "ℹ️",
+            duration: 8000,
+          });
+        } else {
+          setDevOtpCode("");
+          setOtpWarning("");
+          toast.success(data.message || "Recovery code sent to your email!");
+        }
         setStep(2);
         setTimer(60);
       }
     } catch (err) {
-      const msg =
-        err.response?.data?.message || "Could not find an account with that email.";
+      setWakeStatus("");
+      const status = err?.response?.status;
+      let msg;
+      if (status === 503 || status === 502 || err?.code === "ERR_NETWORK") {
+        msg = "Server is still starting up. Please wait 10–20 seconds and try again.";
+      } else {
+        msg = err.response?.data?.message || "Could not find an account with that email.";
+      }
       setErrorMsg(msg);
       toast.error(msg);
     } finally {
@@ -121,19 +201,26 @@ const ForgotPassword = () => {
   // Resend OTP in Step 2
   const handleResendOtp = async () => {
     if (timer > 0 || resending) return;
-
     try {
       setResending(true);
       setErrorMsg("");
-      const { data } = await axios.post(
+      const { data } = await retryPost(
         `${serverUrl}/api/auth/send-otp`,
         { email: email.trim().toLowerCase() },
-        { withCredentials: true }
+        { withCredentials: true, timeout: 30000 }
       );
-
       if (data?.success) {
-        toast.success("A fresh recovery code has been sent!");
-        setOtp(["", "", "", "", "", ""]);
+        if (data?.previewOtp) {
+          setDevOtpCode(data.previewOtp);
+          setOtpWarning(data.warning || "");
+          setOtp(data.previewOtp.split(""));
+          toast(`New fallback code: ${data.previewOtp}`, { icon: "ℹ️", duration: 8000 });
+        } else {
+          setDevOtpCode("");
+          setOtpWarning("");
+          setOtp(["", "", "", "", "", ""]);
+          toast.success("A fresh recovery code has been sent!");
+        }
         setTimer(60);
         inputRefs.current[0]?.focus();
       }
@@ -155,16 +242,14 @@ const ForgotPassword = () => {
       setErrorMsg("Please enter the complete 6-digit verification code.");
       return;
     }
-
     try {
       setLoading(true);
       setErrorMsg("");
-      const { data } = await axios.post(
+      const { data } = await retryPost(
         `${serverUrl}/api/auth/verify-otp`,
         { email: email.trim().toLowerCase(), otp: fullOtp },
-        { withCredentials: true }
+        { withCredentials: true, timeout: 30000 }
       );
-
       if (data?.success) {
         toast.success(data.message || "Code verified successfully!");
         setStep(3);
@@ -182,29 +267,18 @@ const ForgotPassword = () => {
   // STEP 3: Reset Password
   const handleResetPassword = async (e) => {
     if (e) e.preventDefault();
-
-    if (!newPassword) {
-      setErrorMsg("New password is required.");
-      return;
-    }
-    if (newPassword.length < 6) {
-      setErrorMsg("Password must be at least 6 characters long.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setErrorMsg("Passwords do not match.");
-      return;
-    }
+    if (!newPassword) { setErrorMsg("New password is required."); return; }
+    if (newPassword.length < 6) { setErrorMsg("Password must be at least 6 characters long."); return; }
+    if (newPassword !== confirmPassword) { setErrorMsg("Passwords do not match."); return; }
 
     try {
       setLoading(true);
       setErrorMsg("");
-      const { data } = await axios.post(
+      const { data } = await retryPost(
         `${serverUrl}/api/auth/reset-password`,
         { email: email.trim().toLowerCase(), newpassword: newPassword },
-        { withCredentials: true }
+        { withCredentials: true, timeout: 30000 }
       );
-
       if (data?.success) {
         toast.success(data.message || "Password updated! You can now log in.");
         setStep(4);
@@ -224,6 +298,20 @@ const ForgotPassword = () => {
       <div className="container">
         <div className="register-container">
           <div className="form auth-card">
+
+            {/* Server Wake Status Banner */}
+            {wakeStatus === "waking" && (
+              <div className="server-wakeup-banner">
+                <BeatLoader size={6} color="#84cc16" />
+                <span>Server is starting up — retrying automatically&hellip;</span>
+              </div>
+            )}
+            {wakeStatus === "ready" && (
+              <div className="server-wakeup-banner server-wakeup-banner--ready">
+                <span>✓ Server is ready</span>
+              </div>
+            )}
+
             {/* Header / Brand */}
             <div className="auth-brand">
               <div className="mobile-mascot-wrapper">
@@ -326,7 +414,12 @@ const ForgotPassword = () => {
                   disabled={loading || !email.trim()}
                 >
                   {loading ? (
-                    <BeatLoader size={8} color="#fff" />
+                    <span className="loading-btn-content">
+                      <BeatLoader size={8} color="#fff" />
+                      <span className="loading-btn-text">
+                        {wakeStatus === "waking" ? "Waking server…" : "Sending…"}
+                      </span>
+                    </span>
                   ) : (
                     <>
                       <span className="desktop-btn-text">Send Recovery Code</span>
@@ -340,6 +433,31 @@ const ForgotPassword = () => {
             {/* STEP 2: 6-Digit OTP Form */}
             {step === 2 && (
               <form onSubmit={handleVerifyOtp} className="auth-main-form">
+
+                {/* Fallback code card — shown when SMTP failed on backend */}
+                {devOtpCode && (
+                  <div className="dev-otp-notice">
+                    <div className="dev-otp-header">
+                      <ShieldCheck size={16} color="#84cc16" />
+                      <span>Server Fallback Code</span>
+                    </div>
+                    <p className="dev-otp-desc">
+                      {otpWarning || "Email delivery is in fallback mode. Use this code to continue:"}
+                    </p>
+                    <div
+                      className="dev-otp-badge"
+                      onClick={() => {
+                        setOtp(devOtpCode.split(""));
+                        toast.success("Code auto-filled!");
+                      }}
+                      title="Click to auto-fill"
+                    >
+                      <span className="dev-otp-number">{devOtpCode}</span>
+                      <span className="dev-otp-click-hint">Tap to auto-fill</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="otp-inputs-wrapper" onPaste={handleOtpPaste}>
                   {otp.map((digit, idx) => (
                     <input
@@ -357,7 +475,7 @@ const ForgotPassword = () => {
                 </div>
 
                 <p className="otp-spam-hint">
-                  Check your <strong>Spam / Junk</strong> folder if the email doesn&apos;t arrive in your inbox within a minute.
+                  Check your <strong>Spam / Junk</strong> folder if the email doesn&apos;t arrive within a minute.
                 </p>
 
                 <button

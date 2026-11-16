@@ -56,6 +56,7 @@ const CallPage = () => {
   );
   const [callDuration, setCallDuration] = useState(0);
   const [isPeerConnected, setIsPeerConnected] = useState(false);
+  const [hasLocalVideo, setHasLocalVideo] = useState(false);
   const [permissionError, setPermissionError] = useState(null); // null | 'mic' | 'camera' | 'blocked'
   const [isRequestingPermission, setIsRequestingPermission] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -85,6 +86,7 @@ const CallPage = () => {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
     }
+    setHasLocalVideo(false);
 
     if (remoteStreamRef.current) {
       remoteStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -220,6 +222,9 @@ const CallPage = () => {
       if (localVideoRef.current && !isAudioOnly) {
         localVideoRef.current.srcObject = stream;
       }
+      const hasLiveVid = !isAudioOnly && stream.getVideoTracks().some((t) => t.readyState === "live");
+      setHasLocalVideo(hasLiveVid);
+      setCamOff(!hasLiveVid);
       setPermissionError(null);
       setShowPermissionGuide(false);
       setIsRequestingPermission(false);
@@ -228,16 +233,29 @@ const CallPage = () => {
     } catch (err) {
       console.warn("Direct permission request failed:", err);
       setIsRequestingPermission(false);
+      setHasLocalVideo(false);
       const isBlocked =
         err.name === "NotAllowedError" ||
-        err.name === "PermissionDeniedError";
+        err.name === "PermissionDeniedError" ||
+        err.name === "SecurityError";
       setPermissionError(isBlocked ? "blocked" : "mic");
       setStatus("Microphone permission required. Please allow access.");
-      if (isBlocked) {
-        setShowPermissionGuide(true);
-      }
+      // Always show the step-by-step guide when blocked
+      setShowPermissionGuide(true);
     }
   }, [isAudioOnly, isCaller]);
+
+  // Open browser site-settings for microphone (Chrome-specific deep link)
+  const handleOpenSiteSettings = useCallback(() => {
+    // On Android Chrome this triggers the site permission settings
+    // We navigate to the chrome permission settings URL — works on Chrome/Edge desktop/Android
+    try {
+      window.open("chrome://settings/content/microphone", "_self");
+    } catch (_e) {
+      // Fallback: show the guide so user knows to go to settings manually
+    }
+    setShowPermissionGuide(true);
+  }, []);
 
   const handleToggleMic = () => {
     if (permissionError) {
@@ -255,6 +273,10 @@ const CallPage = () => {
 
   const handleRefreshCall = () => {
     setIsRefreshing(true);
+    if (permissionError === "blocked") {
+      window.location.reload();
+      return;
+    }
     if (permissionError) {
       handleRequestPermission();
     } else {
@@ -381,6 +403,9 @@ const CallPage = () => {
         if (localVideoRef.current && !isAudioOnly) {
           localVideoRef.current.srcObject = stream;
         }
+        const hasLiveVid = !isAudioOnly && stream.getVideoTracks().some((t) => t.readyState === "live");
+        setHasLocalVideo(hasLiveVid);
+        setCamOff(!hasLiveVid);
 
         // Close any prior peer connection
         if (pcRef.current) {
@@ -455,6 +480,7 @@ const CallPage = () => {
         console.error("Failed to initialize call:", err);
         setStatus("Could not access camera/microphone.");
         setPermissionError("blocked");
+        setHasLocalVideo(false);
         setIsRequestingPermission(false);
         setIsRefreshing(false);
       }
@@ -609,7 +635,7 @@ const CallPage = () => {
                 </span>
               </div>
 
-              {/* Problem 2 Fix: Interactive Permission Grant Card */}
+              {/* Permission Grant Card */}
               {permissionError && (
                 <div className="call-permission-card">
                   <div className="call-permission-card-icon">
@@ -622,64 +648,48 @@ const CallPage = () => {
                   </h4>
                   <p className="call-permission-card-text">
                     {permissionError === "blocked"
-                      ? "Your browser is currently blocking microphone access for Lime."
+                      ? "Microphone access is blocked in your browser. Tap the lock/tune icon in your browser address bar to allow access, then tap below."
                       : "Lime needs microphone access so other participants can hear you."}
                   </p>
 
-                  <div className="call-permission-steps">
-                    <div className="call-permission-step">
-                      <span className="step-num">1</span>
-                      <span className="step-text">
-                        Tap the <strong>3 dots (⋮)</strong> or <strong>tune/lock icon</strong> in your browser address bar.
-                      </span>
-                    </div>
-                    <div className="call-permission-step">
-                      <span className="step-num">2</span>
-                      <span className="step-text">
-                        Go to <strong>Site settings</strong> or <strong>Permissions</strong> → Set <strong>Microphone</strong> to <strong>Allow</strong>.
-                      </span>
-                    </div>
-                    <div className="call-permission-step">
-                      <span className="step-num">3</span>
-                      <span className="step-text">
-                        Tap <strong>Allow Permission / Retry</strong> below, or tap <strong>Reload &amp; Connect</strong>.
-                      </span>
-                    </div>
-                  </div>
-
                   <div className="call-permission-actions">
-                    <button
-                      type="button"
-                      className="call-permission-btn"
-                      onClick={handleRequestPermission}
-                      disabled={isRequestingPermission}
-                    >
-                      <ShieldCheck size={18} />
-                      <span>
-                        {isRequestingPermission
-                          ? "Requesting Access..."
-                          : "Allow Permission / Retry"}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="call-permission-guide-trigger"
-                      onClick={() => setShowPermissionGuide(true)}
-                    >
-                      <HelpCircle size={16} />
-                      <span>Where do I tap? Show Guide</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="call-permission-reload-btn"
-                      onClick={() => window.location.reload()}
-                      title="Reload page to apply settings"
-                    >
-                      <RotateCw size={16} />
-                      <span>Reload &amp; Connect</span>
-                    </button>
+                    {permissionError === "blocked" ? (
+                      <>
+                        {/* Primary CTA: open the step guide immediately */}
+                        <button
+                          type="button"
+                          className="call-permission-btn"
+                          onClick={() => setShowPermissionGuide(true)}
+                        >
+                          <ShieldCheck size={18} />
+                          <span>How to Allow Permission</span>
+                        </button>
+                        {/* Try again after user has allowed in settings */}
+                        <button
+                          type="button"
+                          className="call-permission-reload-btn"
+                          onClick={() => window.location.reload()}
+                          title="Reload page after allowing mic in browser settings"
+                        >
+                          <RotateCw size={16} />
+                          <span>Allowed? Reload &amp; Connect</span>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="call-permission-btn"
+                        onClick={handleRequestPermission}
+                        disabled={isRequestingPermission}
+                      >
+                        <ShieldCheck size={18} />
+                        <span>
+                          {isRequestingPermission
+                            ? "Requesting Access..."
+                            : "Allow Microphone"}
+                        </span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -779,8 +789,8 @@ const CallPage = () => {
           )}
         </div>
 
-        {/* Local Video Picture-in-Picture */}
-        {!isAudioOnly && (
+        {/* Local Video Picture-in-Picture - only displayed when local camera is active and permission is granted */}
+        {!isAudioOnly && hasLocalVideo && !permissionError && (
           <div className={`call-stream-local ${camOff ? "cam-off" : ""}`}>
             <video
               ref={localVideoRef}

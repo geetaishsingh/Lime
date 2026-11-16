@@ -18,6 +18,7 @@ import { upload } from "../middleware/multer.js";
 const userRoute = express.Router();
 
 userRoute.get("/", isAuth, getCurrentUser);
+userRoute.get("/me", isAuth, getCurrentUser);
 userRoute.get("/user", isAuth, getCurrentUser);
 userRoute.get("/:id/profile", isAuth, getProfile);
 userRoute.post(
