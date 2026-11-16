@@ -250,8 +250,6 @@ export const verifySignupOtp = async (req, res) => {
     res.cookie("token", token, getTokenCookieOptions());
     res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
 
-    console.info(`[Lime Auth] Signup verification successful [userId=${user._id}]`);
-
     return res.status(200).json({
       message: "Account verified successfully! Welcome to Lime.",
       user: sanitizeUser(user),
@@ -376,9 +374,8 @@ export const login = async (req, res) => {
     user.loginOtpChallengeExpires = new Date(now.getTime() + 10 * 60 * 1000);
     await user.save();
 
-    let delivery;
     try {
-      delivery = await sendLoginOtpMail(user.email, otp);
+      await sendLoginOtpMail(user.email, otp);
     } catch (emailError) {
       user.loginOtpHash = undefined;
       user.loginOtpExpires = undefined;
@@ -393,9 +390,7 @@ export const login = async (req, res) => {
     }
 
     return res.status(200).json({
-      message: delivery.method === "smtp"
-        ? `A sign-in code was sent to ${user.email}.`
-        : "Email is not configured; the sign-in code was printed to the backend logs.",
+      message: `A sign-in code was sent to ${user.email}.`,
       success: true,
       requiresOtp: true,
       email: user.email,
@@ -525,9 +520,8 @@ export const resendLoginOtp = async (req, res) => {
     user.loginOtpChallengeExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    let delivery;
     try {
-      delivery = await sendLoginOtpMail(user.email, otp);
+      await sendLoginOtpMail(user.email, otp);
     } catch (emailError) {
       user.loginOtpHash = previousOtp.hash;
       user.loginOtpExpires = previousOtp.expires;
@@ -542,9 +536,7 @@ export const resendLoginOtp = async (req, res) => {
     }
 
     return res.status(200).json({
-      message: delivery.method === "smtp"
-        ? `A new sign-in code was sent to ${user.email}.`
-        : "Email is not configured; the new sign-in code was printed to the backend logs.",
+      message: `A new sign-in code was sent to ${user.email}.`,
       success: true,
     });
   } catch (error) {
@@ -570,7 +562,6 @@ export const logout = async (req, res) => {
     }
     res.clearCookie("token", getTokenCookieOptions());
     res.clearCookie("refreshToken", getRefreshTokenCookieOptions());
-    console.info("[Lime Auth] Logout executed successfully");
     return res.status(200).json({ message: "Logged out successfully", success: true });
   } catch (error) {
     return res.status(500).json({ message: `Logout error: ${error.message}`, success: false });
@@ -588,7 +579,6 @@ export const refreshTokenController = async (req, res) => {
       req.headers["x-refresh-token"];
 
     if (!rawRefreshToken) {
-      console.info("[Lime Auth] Refresh request: FAILED (no refresh token provided)");
       return res.status(401).json({
         message: "Refresh token required.",
         code: "REFRESH_TOKEN_REQUIRED",
@@ -598,7 +588,6 @@ export const refreshTokenController = async (req, res) => {
 
     const rotated = await rotateRefreshToken(rawRefreshToken);
     if (!rotated) {
-      console.warn("[Lime Auth] Refresh request: FAILED (invalid or revoked refresh token)");
       res.clearCookie("token", getTokenCookieOptions());
       res.clearCookie("refreshToken", getRefreshTokenCookieOptions());
       return res.status(401).json({
@@ -619,8 +608,6 @@ export const refreshTokenController = async (req, res) => {
 
     res.cookie("token", rotated.accessToken, getTokenCookieOptions());
     res.cookie("refreshToken", rotated.refreshToken, getRefreshTokenCookieOptions());
-
-    console.info(`[Lime Auth] Refresh request: SUCCESS [userId=${user._id}]`);
 
     return res.status(200).json({
       success: true,
@@ -801,7 +788,6 @@ export const googleCallback = async (req, res) => {
     res.cookie("token", token, getTokenCookieOptions());
     res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
 
-    console.info(`[Lime Auth] Google OAuth login successful [userId=${user._id}]`);
     return res.redirect(`${clientUrl}/#token=${token}&refreshToken=${refreshToken}`);
   } catch (error) {
     console.error("[Lime Auth] Google Callback Error:", error);
@@ -823,7 +809,6 @@ export const githubCallback = async (req, res) => {
     res.cookie("token", token, getTokenCookieOptions());
     res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
 
-    console.info(`[Lime Auth] GitHub OAuth login successful [userId=${user._id}]`);
     return res.redirect(`${clientUrl}/#token=${token}&refreshToken=${refreshToken}`);
   } catch (error) {
     console.error("[Lime Auth] GitHub Callback Error:", error);

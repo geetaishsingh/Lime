@@ -20,8 +20,21 @@ export default defineConfig({
   build: {
     target: "es2020",
     chunkSizeWarningLimit: 600,
-    rollupOptions: {
+    minify: "oxc",
+    rolldownOptions: {
       output: {
+        minify: {
+          compress: {
+            dropDebugger: true,
+            treeshake: {
+              manualPureFunctions: [
+                "console.log",
+                "console.info",
+                "console.debug",
+              ],
+            },
+          },
+        },
         manualChunks(id) {
           if (id.includes("node_modules")) {
             if (

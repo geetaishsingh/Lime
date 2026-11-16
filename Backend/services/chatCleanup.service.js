@@ -68,10 +68,6 @@ export const cleanupExpiredChats = async () => {
       await conv.save();
     }
 
-    console.log(
-      `[24h Chat Cleanup] Successfully purged ${expiredIds.length} expired message(s) and ${mediaPurgedCount} media attachment(s).`
-    );
-
     return { purgedCount: expiredIds.length, mediaCount: mediaPurgedCount };
   } catch (error) {
     console.error("[24h Chat Cleanup Error]:", error.message);

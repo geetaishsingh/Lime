@@ -10,7 +10,9 @@ import authStorage from "../utils/authStorage";
 import { resetUserState, setAuthLoading } from "../store/user.slice";
 
 const Protected = () => {
-  const { user, loading, networkError, theme } = useSelector((state) => state.user);
+  const { user, loading, theme, authVerificationError } = useSelector(
+    (state) => state.user
+  );
   const dispatch = useDispatch();
 
   // 1. Initial verification loading state — never redirect while checking authentication
@@ -34,10 +36,9 @@ const Protected = () => {
     );
   }
 
-  // 2. Network / server down recovery screen (preserves session during connection drops or cold starts)
-  if (networkError && !user) {
+  if (!user && authVerificationError !== null) {
     return (
-      <div className="lime-splash-screen">
+      <div className="lime-splash-screen" role="alert">
         <div className="lime-splash-content" style={{ maxWidth: "340px", textAlign: "center" }}>
           <div className="lime-splash-logo" style={{ marginBottom: "16px" }}>
             <img
@@ -49,13 +50,23 @@ const Protected = () => {
             />
           </div>
           <h3 style={{ fontSize: "1.1rem", marginBottom: "8px", fontWeight: "700" }}>
-            Connecting to Lime...
+            Unable to verify your session
           </h3>
           <p style={{ fontSize: "0.85rem", opacity: 0.75, marginBottom: "20px", lineHeight: 1.4 }}>
-            We're having trouble reaching the server. Your login session is saved.
+            {authVerificationError === 403
+              ? "The server denied the session verification request."
+              : authVerificationError === 404
+                ? "The authentication endpoint could not be found."
+                : authVerificationError === 500
+                  ? "The authentication service is temporarily unavailable."
+                  : typeof authVerificationError === "number"
+                    ? `The authentication service returned HTTP ${authVerificationError}.`
+                    : "The authentication service could not be reached."}{" "}
+            Your session has not been cleared. Please try again.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
             <button
+              type="button"
               onClick={() => {
                 dispatch(setAuthLoading(true));
                 window.location.reload();
@@ -71,9 +82,10 @@ const Protected = () => {
                 cursor: "pointer",
               }}
             >
-              Retry Connection
+              Retry
             </button>
             <button
+              type="button"
               onClick={async () => {
                 try {
                   await axios.post(
@@ -110,12 +122,10 @@ const Protected = () => {
     );
   }
 
-  // 3. User is authenticated -> render dashboard outlet
   if (user) {
     return <Outlet />;
   }
 
-  // 4. Genuine unauthenticated state -> redirect to login
   return <Navigate to="/login" replace />;
 };
 

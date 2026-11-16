@@ -21,7 +21,7 @@ const processQueue = (error, token = null) => {
 
 /**
  * Global Axios Request Interceptor
- * Injects Authorization header and diagnostic request ID
+ * Injects Authorization header and request ID
  */
 axios.interceptors.request.use(
   (config) => {
@@ -75,8 +75,6 @@ axios.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      console.info("[Lime Auth] Refresh request started");
-
       try {
         // Plain request without triggering interceptors again
         const { data } = await axios.post(
@@ -100,7 +98,6 @@ axios.interceptors.response.use(
             authStorage.setCachedUser(data.user);
           }
 
-          console.info("[Lime Auth] Refresh request successful");
           processQueue(null, newAccess);
 
           originalRequest.headers.Authorization = `Bearer ${newAccess}`;
@@ -111,11 +108,8 @@ axios.interceptors.response.use(
       } catch (refreshErr) {
         const refreshStatus = refreshErr.response?.status;
         if (refreshStatus === 401 || refreshStatus === 403) {
-          console.info("[Lime Auth] Refresh rejected; clearing expired session");
           authStorage.clearTokens();
           authStorage.clearCachedUser();
-        } else {
-          console.warn("[Lime Auth] Refresh unavailable; preserving local session");
         }
         processQueue(refreshErr, null);
         return Promise.reject(refreshErr);

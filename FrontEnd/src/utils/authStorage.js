@@ -140,8 +140,6 @@ export const authStorage = {
         if (token) authStorage.setAccessToken(token);
         if (refreshToken) authStorage.setRefreshToken(refreshToken);
 
-        console.info("[Lime Auth] OAuth tokens captured and stored securely");
-
         // Clean tokens from browser address bar & history
         const cleanUrl =
           window.location.pathname +
@@ -152,7 +150,7 @@ export const authStorage = {
         return true;
       }
     } catch (err) {
-      console.warn("[Lime Auth] Error parsing OAuth tokens from URL:", err.message);
+      console.error("Could not process OAuth credentials from the redirect:", err);
     }
     return false;
   },

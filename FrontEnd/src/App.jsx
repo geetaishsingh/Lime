@@ -85,7 +85,9 @@ const App = () => {
               dispatch(setUnreadMessagesCount(data.count));
             }
           })
-          .catch(() => {});
+          .catch((error) => {
+            console.error("Failed to refresh unread messages count:", error);
+          });
       }
     };
 

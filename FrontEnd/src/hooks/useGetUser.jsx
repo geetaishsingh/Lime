@@ -6,7 +6,7 @@ import {
   setAuthLoading,
   setuser,
   setAuthState,
-  setNetworkError,
+  setAuthVerificationError,
 } from "../store/user.slice.js";
 import authStorage from "../utils/authStorage.js";
 
@@ -28,8 +28,6 @@ const useGetUser = () => {
       }
 
       const reqId = "req_" + Math.random().toString(36).slice(2, 9);
-      console.info(`[Lime Auth] Authentication verification started [reqId=${reqId}]`);
-
       try {
         const { data } = await axios.get(`${serverUrl}/api/user/user`, {
           timeout: 25000, // Generous timeout for mobile networks & cold starts
@@ -41,18 +39,13 @@ const useGetUser = () => {
         if (!isMounted) return;
 
         if (data && data._id) {
-          console.info(`[Lime Auth] Authentication verification completed [status=200] [reqId=${reqId}]`);
           authStorage.setCachedUser(data);
           dispatch(setuser(data));
           return;
         }
 
         if (data?.success === false) {
-          console.warn(`[Lime Auth] Verification returned failure payload [reqId=${reqId}]`);
-          authStorage.clearTokens();
-          authStorage.clearCachedUser();
-          dispatch(setuser(null));
-          return;
+          throw new Error("Session verification was rejected.");
         }
 
         throw new Error("Session verification returned an invalid response.");
@@ -60,27 +53,21 @@ const useGetUser = () => {
         if (!isMounted) return;
 
         const status = error?.response?.status;
-        console.warn(
-          `[Lime Auth] Authentication verification request failed [status=${status || "network_timeout"}] [reqId=${reqId}]`
-        );
+        const userWasDeleted =
+          status === 404 &&
+          error?.response?.data?.message?.toLowerCase() === "user not found";
 
-        if (status === 401 || status === 403) {
-          console.info("[Lime Auth] Redirect reason: session genuinely invalid / token expired");
+        if (status === 401 || userWasDeleted) {
           authStorage.clearTokens();
           authStorage.clearCachedUser();
           dispatch(setuser(null));
           return;
         }
 
-        // Keep the cached profile when the API is temporarily unavailable.
-        console.info("[Lime Auth] Network/server issue encountered. Preserving session.");
         if (cachedUser) {
-          // Restore cached user and exit loading state so app remains usable offline
           dispatch(setAuthState({ user: cachedUser, loading: false }));
-        } else {
-          // Flag network error so Protected route displays reconnect/retry rather than kicking to /login
-          dispatch(setNetworkError(true));
         }
+        dispatch(setAuthVerificationError(status || "network"));
       }
     };
 

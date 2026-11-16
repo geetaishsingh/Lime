@@ -22,7 +22,7 @@ if (typeof window !== "undefined") {
 const initialState = {
   user: initialUser,
   loading: true,
-  networkError: false,
+  authVerificationError: null,
   theme: savedTheme,
   posts: [],
   userPosts: [],
@@ -42,7 +42,7 @@ const userSlice = createSlice({
     setuser: (state, action) => {
       state.user = action.payload || null;
       state.loading = false;
-      state.networkError = false;
+      state.authVerificationError = null;
       if (action.payload && action.payload.bookmarks) {
         state.myBookmarks = action.payload.bookmarks;
       } else if (!action.payload) {
@@ -52,6 +52,10 @@ const userSlice = createSlice({
         state.unreadNotificationsCount = 0;
       }
     },
+    setAuthVerificationError: (state, action) => {
+      state.authVerificationError = action.payload;
+      state.loading = false;
+    },
     setAuthLoading: (state, action) => {
       state.loading = Boolean(action.payload);
     },
@@ -59,6 +63,7 @@ const userSlice = createSlice({
       const { user, loading = false } = action.payload || {};
       state.user = user || null;
       state.loading = Boolean(loading);
+      state.authVerificationError = null;
     },
     setTheme: (state, action) => {
       state.theme = action.payload;
@@ -230,15 +235,11 @@ const userSlice = createSlice({
     decrementUnreadMessagesCount: (state) => {
       state.unreadMessagesCount = Math.max(0, state.unreadMessagesCount - 1);
     },
-    setNetworkError: (state, action) => {
-      state.networkError = Boolean(action.payload);
-      state.loading = false;
-    },
     // Reset on logout
     resetUserState: (state) => {
       state.user = null;
       state.loading = false;
-      state.networkError = false;
+      state.authVerificationError = null;
       state.posts = [];
       state.userPosts = [];
       state.myLikes = [];
@@ -254,6 +255,7 @@ const userSlice = createSlice({
 
 export const {
   setuser,
+  setAuthVerificationError,
   setTheme,
   toggleTheme,
   setPosts,
@@ -268,7 +270,6 @@ export const {
   setMyLikes,
   setAuthLoading,
   setAuthState,
-  setNetworkError,
   addLiked,
   removeLiked,
   addBookmark,

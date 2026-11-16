@@ -1,5 +1,9 @@
-export const serverUrl =
+const configuredServerUrl =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+export const serverUrl = configuredServerUrl
+  .replace(/\/+$/, "")
+  .replace(/\/api$/i, "");
 
 export const getMediaUrl = (url) => {
   if (!url) return "";

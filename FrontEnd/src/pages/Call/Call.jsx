@@ -129,7 +129,9 @@ const CallPage = () => {
           remoteAudioRef.current.srcObject = stream;
         }
         remoteAudioRef.current.play().catch((err) => {
-          console.warn("Remote audio play prevented by browser:", err);
+          if (err?.name !== "NotAllowedError") {
+            console.error("Failed to play remote audio:", err);
+          }
         });
       }
 
@@ -139,7 +141,9 @@ const CallPage = () => {
           remoteVideoRef.current.srcObject = stream;
         }
         remoteVideoRef.current.play().catch((err) => {
-          console.warn("Remote video play prevented by browser:", err);
+          if (err?.name !== "NotAllowedError") {
+            console.error("Failed to play remote video:", err);
+          }
         });
       }
 

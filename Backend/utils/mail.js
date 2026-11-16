@@ -59,36 +59,16 @@ export const sendSignupOtpMail = async (to, otp) => {
       return { success: true, method: "smtp" };
     } catch (err) {
       console.error("[Email Error] Failed to send via SMTP:", err.message);
-      if (process.env.NODE_ENV === "production") {
-        throw new Error("Could not send the verification code. Please try again.");
-      }
-      console.log(`\n======================================================`);
-      console.log(`[LIME DEV EMAIL FALLBACK] SIGNUP OTP for ${to}: ${otp}`);
-      console.log(`======================================================\n`);
-      return { success: true, method: "dev_fallback" };
+      throw new Error("Could not send the verification code. Please try again.");
     }
-  } else {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("Email delivery is not configured.");
-    }
-
-    console.log(`\n======================================================`);
-    console.log(`[LIME DEV EMAIL FALLBACK] SIGNUP OTP for ${to}: ${otp}`);
-    console.log(`======================================================\n`);
-    return { success: true, method: "dev_fallback" };
   }
+
+  throw new Error("Email delivery is not configured.");
 };
 
 export const sendLoginOtpMail = async (to, otp) => {
   if (!isEmailConfigured || !transporter) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("Email delivery is not configured.");
-    }
-
-    console.log(`\n======================================================`);
-    console.log(`[LIME DEV EMAIL FALLBACK] LOGIN OTP for ${to}: ${otp}`);
-    console.log(`======================================================\n`);
-    return { success: true, method: "dev_fallback" };
+    throw new Error("Email delivery is not configured.");
   }
 
   try {
@@ -108,14 +88,7 @@ export const sendLoginOtpMail = async (to, otp) => {
     return { success: true, method: "smtp" };
   } catch (error) {
     console.error("[Email Error] Failed to send login OTP:", error.message);
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("Could not send the sign-in code. Please try again.");
-    }
-
-    console.log(`\n======================================================`);
-    console.log(`[LIME DEV EMAIL FALLBACK] LOGIN OTP for ${to}: ${otp}`);
-    console.log(`======================================================\n`);
-    return { success: true, method: "dev_fallback" };
+    throw new Error("Could not send the sign-in code. Please try again.");
   }
 };
 
@@ -150,22 +123,9 @@ export const sendOtpmail = async (to, otp) => {
       return { success: true, method: "smtp" };
     } catch (err) {
       console.error("[Email Error] Failed to send via SMTP:", err.message);
-      if (process.env.NODE_ENV === "production") {
-        throw new Error("Could not send the password reset code. Please try again.");
-      }
-      console.log(`\n======================================================`);
-      console.log(`[LIME DEV EMAIL FALLBACK] RESET OTP for ${to}: ${otp}`);
-      console.log(`======================================================\n`);
-      return { success: true, method: "dev_fallback" };
+      throw new Error("Could not send the password reset code. Please try again.");
     }
-  } else {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("Email delivery is not configured.");
-    }
-
-    console.log(`\n======================================================`);
-    console.log(`[LIME DEV EMAIL FALLBACK] RESET OTP for ${to}: ${otp}`);
-    console.log(`======================================================\n`);
-    return { success: true, method: "dev_fallback" };
   }
+
+  throw new Error("Email delivery is not configured.");
 };
