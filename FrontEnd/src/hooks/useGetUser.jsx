@@ -29,12 +29,31 @@ const useGetUser = () => {
 
       const reqId = "req_" + Math.random().toString(36).slice(2, 9);
       try {
-        const { data } = await axios.get(`${serverUrl}/api/user/user`, {
-          timeout: 25000, // Generous timeout for mobile networks & cold starts
-          headers: {
-            "x-request-id": reqId,
-          },
-        });
+        const requestCurrentUser = () =>
+          axios.get(`${serverUrl}/api/user`, {
+            timeout: 25000, // Generous timeout for mobile networks & cold starts
+            headers: {
+              "x-request-id": reqId,
+            },
+          });
+
+        let response;
+        try {
+          response = await requestCurrentUser();
+        } catch (error) {
+          const bearerUserMissing =
+            error?.response?.status === 404 &&
+            error?.response?.data?.code === "USER_NOT_FOUND" &&
+            authStorage.getAccessToken();
+
+          if (!bearerUserMissing) throw error;
+
+          // A stale local bearer token can override a valid session cookie.
+          authStorage.setAccessToken(null);
+          response = await requestCurrentUser();
+        }
+
+        const { data } = response;
 
         if (!isMounted) return;
 
@@ -55,7 +74,7 @@ const useGetUser = () => {
         const status = error?.response?.status;
         const userWasDeleted =
           status === 404 &&
-          error?.response?.data?.message?.toLowerCase() === "user not found";
+          error?.response?.data?.code === "USER_NOT_FOUND";
 
         if (status === 401 || userWasDeleted) {
           authStorage.clearTokens();

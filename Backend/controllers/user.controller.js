@@ -17,7 +17,11 @@ export const getCurrentUser = async (req, res) => {
       .populate("bookmarks");
 
     if (!user) {
-      return res.status(404).json({ message: "User not found", success: false });
+      return res.status(404).json({
+        message: "User not found",
+        code: "USER_NOT_FOUND",
+        success: false,
+      });
     }
 
     const userObj = user.toObject();
