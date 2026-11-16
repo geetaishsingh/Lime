@@ -12,6 +12,9 @@ import {
   RotateCw,
   ShieldCheck,
   AlertTriangle,
+  HelpCircle,
+  X,
+  ArrowUpRight,
 } from "lucide-react";
 import { serverUrl } from "../../config";
 import { callSounds } from "../../utils/callSounds";
@@ -57,6 +60,7 @@ const CallPage = () => {
   const [isRequestingPermission, setIsRequestingPermission] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [retryCounter, setRetryCounter] = useState(0);
+  const [showPermissionGuide, setShowPermissionGuide] = useState(false);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -185,10 +189,59 @@ const CallPage = () => {
     return pc;
   }, [roomId, endCall]);
 
+  const handleRequestPermission = useCallback(async () => {
+    setIsRequestingPermission(true);
+    setStatus("Requesting permission...");
+
+    try {
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: !isAudioOnly,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+      } catch (_videoErr) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: false,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+        setCamOff(true);
+      }
+
+      localStreamRef.current = stream;
+      if (localVideoRef.current && !isAudioOnly) {
+        localVideoRef.current.srcObject = stream;
+      }
+      setPermissionError(null);
+      setShowPermissionGuide(false);
+      setIsRequestingPermission(false);
+      setStatus(isCaller ? "Calling..." : "Connecting...");
+      setRetryCounter((c) => c + 1);
+    } catch (err) {
+      console.warn("Direct permission request failed:", err);
+      setIsRequestingPermission(false);
+      const isBlocked =
+        err.name === "NotAllowedError" ||
+        err.name === "PermissionDeniedError";
+      setPermissionError(isBlocked ? "blocked" : "mic");
+      setStatus("Microphone permission required. Please allow access.");
+      if (isBlocked) {
+        setShowPermissionGuide(true);
+      }
+    }
+  }, [isAudioOnly, isCaller]);
+
   const handleToggleMic = () => {
     if (permissionError) {
-      setIsRequestingPermission(true);
-      setRetryCounter((c) => c + 1);
+      handleRequestPermission();
       return;
     }
     if (localStreamRef.current) {
@@ -202,7 +255,11 @@ const CallPage = () => {
 
   const handleRefreshCall = () => {
     setIsRefreshing(true);
-    setRetryCounter((c) => c + 1);
+    if (permissionError) {
+      handleRequestPermission();
+    } else {
+      setRetryCounter((c) => c + 1);
+    }
     setTimeout(() => {
       setIsRefreshing(false);
     }, 1200);
@@ -224,6 +281,50 @@ const CallPage = () => {
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
 
+  // Auto-detect when user grants permission in browser settings and returns to tab
+  useEffect(() => {
+    let micStatus;
+
+    const checkPermissionState = async () => {
+      if (!navigator.permissions || !navigator.permissions.query) return;
+      try {
+        const status = await navigator.permissions.query({ name: "microphone" });
+        micStatus = status;
+
+        const updateStatus = () => {
+          if (status.state === "granted") {
+            setPermissionError(null);
+            if (!localStreamRef.current || !localStreamRef.current.active) {
+              setRetryCounter((c) => c + 1);
+            }
+          } else if (status.state === "denied") {
+            setPermissionError("blocked");
+          }
+        };
+
+        updateStatus();
+        status.onchange = updateStatus;
+      } catch (_e) {
+        // Ignored if permissions query is unsupported
+      }
+    };
+
+    checkPermissionState();
+
+    const handleFocus = () => {
+      checkPermissionState();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+
+    return () => {
+      if (micStatus) micStatus.onchange = null;
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
+    };
+  }, []);
+
   // Main lifecycle setup
   useEffect(() => {
     if (!roomId) {
@@ -235,38 +336,40 @@ const CallPage = () => {
 
     const initCall = async () => {
       try {
-        let stream;
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: !isAudioOnly,
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-            },
-          });
-        } catch (_mediaErr) {
-          // If video permission failed or device lacks camera, try audio only
+        let stream = localStreamRef.current;
+        if (!stream || stream.getTracks().length === 0 || !stream.active) {
           try {
             stream = await navigator.mediaDevices.getUserMedia({
-              video: false,
+              video: !isAudioOnly,
               audio: {
                 echoCancellation: true,
                 noiseSuppression: true,
                 autoGainControl: true,
               },
             });
-            setStatus("Camera unavailable — Audio only mode");
-            setCamOff(true);
-          } catch (_audioErr) {
-            const isBlocked =
-              _audioErr.name === "NotAllowedError" ||
-              _audioErr.name === "PermissionDeniedError";
-            setPermissionError(isBlocked ? "blocked" : "mic");
-            setStatus("Microphone permission required. Please allow access.");
-            setIsRequestingPermission(false);
-            setIsRefreshing(false);
-            return;
+          } catch (_mediaErr) {
+            // If video permission failed or device lacks camera, try audio only
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: false,
+                audio: {
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true,
+                },
+              });
+              setStatus("Camera unavailable — Audio only mode");
+              setCamOff(true);
+            } catch (_audioErr) {
+              const isBlocked =
+                _audioErr.name === "NotAllowedError" ||
+                _audioErr.name === "PermissionDeniedError";
+              setPermissionError(isBlocked ? "blocked" : "mic");
+              setStatus("Microphone permission required. Please allow access.");
+              setIsRequestingPermission(false);
+              setIsRefreshing(false);
+              return;
+            }
           }
         }
 
@@ -277,6 +380,12 @@ const CallPage = () => {
         localStreamRef.current = stream;
         if (localVideoRef.current && !isAudioOnly) {
           localVideoRef.current.srcObject = stream;
+        }
+
+        // Close any prior peer connection
+        if (pcRef.current) {
+          pcRef.current.close();
+          pcRef.current = null;
         }
 
         // Connect to signaling socket
@@ -358,6 +467,10 @@ const CallPage = () => {
       callSounds.cleanup();
       if (socketRef.current) {
         socketRef.current.disconnect();
+      }
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
       }
     };
   }, [roomId, isAudioOnly, isCaller, createPeerConnection, endCall, navigate, retryCounter]);
@@ -500,29 +613,166 @@ const CallPage = () => {
               {permissionError && (
                 <div className="call-permission-card">
                   <div className="call-permission-card-icon">
-                    <AlertTriangle size={22} color="#eab308" />
+                    <AlertTriangle size={24} color="#eab308" />
                   </div>
+                  <h4 className="call-permission-card-title">
+                    {permissionError === "blocked"
+                      ? "Microphone Access Blocked"
+                      : "Microphone Access Required"}
+                  </h4>
                   <p className="call-permission-card-text">
                     {permissionError === "blocked"
-                      ? "Microphone access is blocked in your browser. Tap the lock/tune icon in your browser address bar to allow access, then tap below."
-                      : "Microphone permission is required to speak and hear in this call."}
+                      ? "Your browser is currently blocking microphone access for Lime."
+                      : "Lime needs microphone access so other participants can hear you."}
                   </p>
-                  <button
-                    type="button"
-                    className="call-permission-btn"
-                    onClick={() => {
-                      setIsRequestingPermission(true);
-                      setRetryCounter((c) => c + 1);
-                    }}
-                    disabled={isRequestingPermission}
+
+                  <div className="call-permission-steps">
+                    <div className="call-permission-step">
+                      <span className="step-num">1</span>
+                      <span className="step-text">
+                        Tap the <strong>3 dots (⋮)</strong> or <strong>tune/lock icon</strong> in your browser address bar.
+                      </span>
+                    </div>
+                    <div className="call-permission-step">
+                      <span className="step-num">2</span>
+                      <span className="step-text">
+                        Go to <strong>Site settings</strong> or <strong>Permissions</strong> → Set <strong>Microphone</strong> to <strong>Allow</strong>.
+                      </span>
+                    </div>
+                    <div className="call-permission-step">
+                      <span className="step-num">3</span>
+                      <span className="step-text">
+                        Tap <strong>Allow Permission / Retry</strong> below, or tap <strong>Reload &amp; Connect</strong>.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="call-permission-actions">
+                    <button
+                      type="button"
+                      className="call-permission-btn"
+                      onClick={handleRequestPermission}
+                      disabled={isRequestingPermission}
+                    >
+                      <ShieldCheck size={18} />
+                      <span>
+                        {isRequestingPermission
+                          ? "Requesting Access..."
+                          : "Allow Permission / Retry"}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="call-permission-guide-trigger"
+                      onClick={() => setShowPermissionGuide(true)}
+                    >
+                      <HelpCircle size={16} />
+                      <span>Where do I tap? Show Guide</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="call-permission-reload-btn"
+                      onClick={() => window.location.reload()}
+                      title="Reload page to apply settings"
+                    >
+                      <RotateCw size={16} />
+                      <span>Reload &amp; Connect</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Visual Guide Modal for Unblocking Microphone */}
+              {showPermissionGuide && (
+                <div
+                  className="call-guide-backdrop"
+                  onClick={() => setShowPermissionGuide(false)}
+                >
+                  <div
+                    className="call-guide-modal"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <ShieldCheck size={18} />
-                    <span>
-                      {isRequestingPermission
-                        ? "Requesting Access..."
-                        : "Allow Permission / Retry"}
-                    </span>
-                  </button>
+                    <div className="call-guide-top-pointer">
+                      <span className="pointer-text">
+                        Tap <strong>⋮</strong> at top-right of your browser
+                      </span>
+                      <ArrowUpRight size={22} className="pointer-arrow" />
+                    </div>
+
+                    <div className="call-guide-header">
+                      <div className="call-guide-badge">
+                        <AlertTriangle size={18} color="#eab308" />
+                        <span>Unblock Microphone</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="call-guide-close-btn"
+                        onClick={() => setShowPermissionGuide(false)}
+                        aria-label="Close guide"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    <p className="call-guide-subtitle">
+                      Web browsers forbid websites from opening phone settings directly for security. Follow these 3 taps in Chrome:
+                    </p>
+
+                    <div className="call-guide-steps-list">
+                      <div className="call-guide-step-card">
+                        <div className="step-badge">1</div>
+                        <div className="step-content">
+                          <h5>Tap the 3 dots (⋮) in Chrome</h5>
+                          <p>Top-right corner next to the address bar.</p>
+                        </div>
+                      </div>
+
+                      <div className="call-guide-step-card">
+                        <div className="step-badge">2</div>
+                        <div className="step-content">
+                          <h5>Tap Site settings or ⓘ Info</h5>
+                          <p>
+                            Go to <strong>Permissions</strong> → <strong>Microphone</strong>.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="call-guide-step-card">
+                        <div className="step-badge">3</div>
+                        <div className="step-content">
+                          <h5>Change to &quot;Allow&quot;</h5>
+                          <p>
+                            Switch from <em>Blocked</em> to <strong>Allow</strong>.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="call-guide-actions">
+                      <button
+                        type="button"
+                        className="call-permission-btn"
+                        onClick={() => {
+                          setShowPermissionGuide(false);
+                          handleRequestPermission();
+                        }}
+                      >
+                        <ShieldCheck size={18} />
+                        <span>Try Allow Again</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="call-permission-reload-btn"
+                        onClick={() => window.location.reload()}
+                      >
+                        <RotateCw size={16} />
+                        <span>Reload &amp; Connect</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
