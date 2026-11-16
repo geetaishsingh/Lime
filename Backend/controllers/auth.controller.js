@@ -692,8 +692,9 @@ export const sendOtp = async (req, res) => {
     user.isOtpVerified = false;
     await user.save();
 
+    let mailResult;
     try {
-      await sendOtpmail(cleanEmail, otp);
+      mailResult = await sendOtpmail(cleanEmail, otp);
     } catch (error) {
       user.resetOtp = undefined;
       user.resetOtpExpires = undefined;
@@ -706,11 +707,18 @@ export const sendOtp = async (req, res) => {
       });
     }
 
-    return res.status(200).json({
+    const responsePayload = {
       message: "Password reset code sent to your email. Check your Inbox and Spam folder.",
       success: true,
       email: cleanEmail,
-    });
+    };
+
+    if (mailResult?.previewOtp) {
+      responsePayload.previewOtp = mailResult.previewOtp;
+      responsePayload.warning = mailResult.warning;
+    }
+
+    return res.status(200).json(responsePayload);
   } catch (error) {
     return res.status(500).json({ message: `Failed to send reset code: ${error.message}`, success: false });
   }

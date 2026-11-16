@@ -120,12 +120,16 @@ axios.interceptors.response.use(
 
     // Auto-retry transient 503/502/network errors during Render container wakeup (cold start)
     const isColdStart =
-      status === 503 || status === 502 || error.code === "ERR_NETWORK";
-    if (isColdStart && (!originalRequest._retry503Count || originalRequest._retry503Count < 2)) {
-      originalRequest._retry503Count = (originalRequest._retry503Count || 0) + 1;
-      const delay = originalRequest._retry503Count === 1 ? 1500 : 2500;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      return axios(originalRequest);
+      status === 503 || status === 502 || error.code === "ERR_NETWORK" || error.code === "ECONNABORTED";
+    if (isColdStart) {
+      const retryCount = originalRequest._retry503Count || 0;
+      if (retryCount < 5) {
+        originalRequest._retry503Count = retryCount + 1;
+        // Progressive back-off: 2s, 4s, 6s, 8s, 10s
+        const delay = (retryCount + 1) * 2000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return axios(originalRequest);
+      }
     }
 
     return Promise.reject(error);
