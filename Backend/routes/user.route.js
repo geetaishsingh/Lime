@@ -8,6 +8,9 @@ import {
   searchUser,
   blockOrUnblockUser,
   reportContent,
+  setPassword,
+  changePassword,
+  skipPasswordPrompt,
 } from "../controllers/user.controller.js";
 import isAuth from "../middleware/isAuth.js";
 import { upload } from "../middleware/multer.js";
@@ -30,6 +33,9 @@ userRoute.post("/follow-or-unfollow/:id", isAuth, followOrUnfollow);
 userRoute.get("/search", isAuth, searchUser);
 userRoute.post("/block/:id", isAuth, blockOrUnblockUser);
 userRoute.post("/report", isAuth, reportContent);
+userRoute.post("/set-password", isAuth, setPassword);
+userRoute.post("/change-password", isAuth, changePassword);
+userRoute.post("/skip-password-prompt", isAuth, skipPasswordPrompt);
 
 export default userRoute;
 

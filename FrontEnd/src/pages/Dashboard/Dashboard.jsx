@@ -19,7 +19,20 @@ const Dashboard = () => {
     (state) => state.user
   );
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isLogoRefreshing, setIsLogoRefreshing] = useState(false);
   const location = useLocation();
+
+  const handleLogoClick = (e) => {
+    e.preventDefault();
+    setIsLogoRefreshing(true);
+    setTimeout(() => {
+      if (location.pathname === "/") {
+        window.location.reload();
+      } else {
+        window.location.href = "/";
+      }
+    }, 200);
+  };
 
   useEffect(() => {
     if (!window.visualViewport) return;
@@ -51,13 +64,19 @@ const Dashboard = () => {
           {/* Mobile Top Header (hidden inside active mobile chat) */}
           {!isChatOpenOnMobile && (
             <header className="mobile-top-header">
-              <Link to="/" className="mobile-logo-link" aria-label="Lime Home">
+              <a
+                href="/"
+                className={`mobile-logo-link ${isLogoRefreshing ? "refreshing-spin" : ""}`}
+                onClick={handleLogoClick}
+                aria-label="Refresh Lime Home"
+                title="Tap Lime logo to refresh website"
+              >
                 <img
                   src={theme === "light" ? limeLogoFullLight : limeLogoFull}
                   alt="Lime"
                   className="mobile-brand-logo"
                 />
-              </Link>
+              </a>
 
               <div className="mobile-header-actions">
                 <Link to="/search" className={`mobile-header-btn ${isSearchActive ? "active" : ""}`} title="Search">

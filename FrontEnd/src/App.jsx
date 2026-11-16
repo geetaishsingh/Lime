@@ -11,6 +11,7 @@ import useGetUserPosts from "./hooks/useGetUserPosts";
 import useGetMyLikes from "./hooks/useGetMyLikes";
 import useGetMySuggestions from "./hooks/useGetMySuggestions.jsx";
 import IncomingCallModal from './components/IncomingCallModal/IncomingCallModal.jsx'
+import OptionalPasswordModal from "./components/OptionalPasswordModal/OptionalPasswordModal.jsx";
 import { socket } from "./socket.js";
 import {
   addNotification,
@@ -150,6 +151,7 @@ const App = () => {
     <div className={`lime-app theme-${theme}`}>
       <Outlet />
       <IncomingCallModal/>
+      <OptionalPasswordModal />
       <Toaster
         position="top-right"
         toastOptions={{

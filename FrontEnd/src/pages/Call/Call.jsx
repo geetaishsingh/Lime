@@ -9,6 +9,9 @@ import {
   VideoOff,
   PhoneOff,
   ArrowLeft,
+  RotateCw,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { serverUrl } from "../../config";
 import { callSounds } from "../../utils/callSounds";
@@ -50,6 +53,10 @@ const CallPage = () => {
   );
   const [callDuration, setCallDuration] = useState(0);
   const [isPeerConnected, setIsPeerConnected] = useState(false);
+  const [permissionError, setPermissionError] = useState(null); // null | 'mic' | 'camera' | 'blocked'
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [retryCounter, setRetryCounter] = useState(0);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -179,6 +186,11 @@ const CallPage = () => {
   }, [roomId, endCall]);
 
   const handleToggleMic = () => {
+    if (permissionError) {
+      setIsRequestingPermission(true);
+      setRetryCounter((c) => c + 1);
+      return;
+    }
     if (localStreamRef.current) {
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
@@ -186,6 +198,14 @@ const CallPage = () => {
         setMuted(!audioTrack.enabled);
       }
     }
+  };
+
+  const handleRefreshCall = () => {
+    setIsRefreshing(true);
+    setRetryCounter((c) => c + 1);
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 1200);
   };
 
   const handleToggleCam = () => {
@@ -239,12 +259,21 @@ const CallPage = () => {
             setStatus("Camera unavailable — Audio only mode");
             setCamOff(true);
           } catch (_audioErr) {
+            const isBlocked =
+              _audioErr.name === "NotAllowedError" ||
+              _audioErr.name === "PermissionDeniedError";
+            setPermissionError(isBlocked ? "blocked" : "mic");
             setStatus("Microphone permission required. Please allow access.");
+            setIsRequestingPermission(false);
+            setIsRefreshing(false);
             return;
           }
         }
 
         if (cancelled) return;
+        setPermissionError(null);
+        setIsRequestingPermission(false);
+        setIsRefreshing(false);
         localStreamRef.current = stream;
         if (localVideoRef.current && !isAudioOnly) {
           localVideoRef.current.srcObject = stream;
@@ -316,6 +345,9 @@ const CallPage = () => {
       } catch (err) {
         console.error("Failed to initialize call:", err);
         setStatus("Could not access camera/microphone.");
+        setPermissionError("blocked");
+        setIsRequestingPermission(false);
+        setIsRefreshing(false);
       }
     };
 
@@ -328,7 +360,7 @@ const CallPage = () => {
         socketRef.current.disconnect();
       }
     };
-  }, [roomId, isAudioOnly, isCaller, createPeerConnection, endCall, navigate]);
+  }, [roomId, isAudioOnly, isCaller, createPeerConnection, endCall, navigate, retryCounter]);
 
   // Manage outgoing ringback tone while waiting for peer to answer
   useEffect(() => {
@@ -394,11 +426,26 @@ const CallPage = () => {
           <span className="call-header-status">
             <span
               className={`status-indicator-dot ${
-                isPeerConnected ? "connected" : "connecting"
+                isPeerConnected
+                  ? "connected"
+                  : permissionError
+                  ? "error"
+                  : "connecting"
               }`}
             />
             {isPeerConnected ? formatDuration(callDuration) : status}
           </span>
+        </div>
+        <div className="call-header-actions">
+          <button
+            type="button"
+            className="call-header-refresh-btn"
+            onClick={handleRefreshCall}
+            title="Refresh / Reconnect Call"
+            aria-label="Refresh Call"
+          >
+            <RotateCw size={18} className={isRefreshing ? "spin-icon" : ""} />
+          </button>
         </div>
       </div>
 
@@ -437,13 +484,47 @@ const CallPage = () => {
               <div className="call-status-badge">
                 <span
                   className={`status-indicator-dot ${
-                    isPeerConnected ? "connected" : "connecting"
+                    isPeerConnected
+                      ? "connected"
+                      : permissionError
+                      ? "error"
+                      : "connecting"
                   }`}
                 />
                 <span>
                   {isPeerConnected ? formatDuration(callDuration) : status}
                 </span>
               </div>
+
+              {/* Problem 2 Fix: Interactive Permission Grant Card */}
+              {permissionError && (
+                <div className="call-permission-card">
+                  <div className="call-permission-card-icon">
+                    <AlertTriangle size={22} color="#eab308" />
+                  </div>
+                  <p className="call-permission-card-text">
+                    {permissionError === "blocked"
+                      ? "Microphone access is blocked in your browser. Tap the lock/tune icon in your browser address bar to allow access, then tap below."
+                      : "Microphone permission is required to speak and hear in this call."}
+                  </p>
+                  <button
+                    type="button"
+                    className="call-permission-btn"
+                    onClick={() => {
+                      setIsRequestingPermission(true);
+                      setRetryCounter((c) => c + 1);
+                    }}
+                    disabled={isRequestingPermission}
+                  >
+                    <ShieldCheck size={18} />
+                    <span>
+                      {isRequestingPermission
+                        ? "Requesting Access..."
+                        : "Allow Permission / Retry"}
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -471,12 +552,26 @@ const CallPage = () => {
       {/* Floating Bottom Control Bar */}
       <div className="call-controls">
         <button
-          className={`call-btn ${muted ? "call-btn--active" : ""}`}
+          className={`call-btn ${muted ? "call-btn--active" : ""} ${
+            permissionError ? "call-btn--warning" : ""
+          }`}
           onClick={handleToggleMic}
-          title={muted ? "Unmute Mic" : "Mute Mic"}
-          aria-label={muted ? "Unmute microphone" : "Mute microphone"}
+          title={
+            permissionError
+              ? "Tap to grant Microphone permission"
+              : muted
+              ? "Unmute Mic"
+              : "Mute Mic"
+          }
+          aria-label={
+            permissionError
+              ? "Tap to grant Microphone permission"
+              : muted
+              ? "Unmute microphone"
+              : "Mute microphone"
+          }
         >
-          {muted ? <MicOff size={22} /> : <Mic size={22} />}
+          {muted || permissionError ? <MicOff size={22} /> : <Mic size={22} />}
         </button>
 
         {!isAudioOnly && (

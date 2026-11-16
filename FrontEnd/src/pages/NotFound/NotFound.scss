@@ -1,0 +1,552 @@
+@use '../../styles/variable.scss' as *;
+
+.not-found-page {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  overflow-x: hidden;
+  box-sizing: border-box;
+
+  /* DEFAULT / DARK THEME (Modern Dark Navy SaaS styling) */
+  background-color: #0b0f19;
+  background-image: radial-gradient(ellipse at 50% 20%, #151c38 0%, #0b0f19 80%);
+  color: #f8fafc;
+  transition: background-color 250ms ease, color 250ms ease;
+
+  /* Ambient Lighting Glow Spheres */
+  .not-found-ambient-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+
+    .glow-sphere {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.65;
+      transform: translate3d(0, 0, 0);
+    }
+
+    .glow-sphere-purple {
+      width: 480px;
+      height: 480px;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-65%);
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.24) 0%, transparent 70%);
+    }
+
+    .glow-sphere-blue {
+      width: 440px;
+      height: 440px;
+      top: 25%;
+      left: 50%;
+      transform: translateX(10%);
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, transparent 70%);
+    }
+
+    .glow-grid-overlay {
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+    }
+  }
+
+  .not-found-content-wrapper {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 620px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin: auto;
+  }
+
+  /* 2. Top Centered Application Logo */
+  .not-found-header {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 24px;
+
+    .not-found-logo-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      transition: transform $transition-fast, opacity $transition-fast;
+      outline: none;
+      border-radius: 10px;
+
+      &:focus-visible {
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.6);
+      }
+
+      &:hover {
+        transform: scale(1.04);
+        opacity: 0.95;
+      }
+
+      .not-found-logo-img {
+        height: 42px;
+        width: auto;
+        max-width: 180px;
+        object-fit: contain;
+        display: block;
+      }
+    }
+  }
+
+  /* Central Card */
+  .not-found-card {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: fadeInEntrance 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* 4. Chat-Related Error Illustration */
+  .illustration-container {
+    width: 100%;
+    max-width: 320px;
+    height: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 12px;
+    animation: floatIllustration 4.5s ease-in-out infinite;
+
+    .chat-404-svg {
+      width: 100%;
+      height: auto;
+      max-height: 220px;
+      overflow: visible;
+
+      /* Dark Theme SVG Elements */
+      .chat-window-bg {
+        fill: #111827;
+      }
+      .chat-window-header-bg {
+        fill: #1e293b;
+      }
+      .chat-window-divider {
+        stroke: #334155;
+      }
+      .chat-bar-placeholder {
+        fill: #334155;
+      }
+      .msg-avatar {
+        fill: #475569;
+      }
+      .msg-bubble-received {
+        fill: #1e293b;
+      }
+      .msg-text-line {
+        fill: #64748b;
+      }
+      .msg-bubble-typing {
+        fill: #1e293b;
+      }
+      .typing-dot {
+        fill: #94a3b8;
+      }
+      .lens-glass-surface {
+        fill: rgba(17, 24, 39, 0.6);
+      }
+
+      /* Typing indicator animation */
+      .typing-dot-1 {
+        animation: typingDotPulse 1.4s infinite ease-in-out;
+      }
+      .typing-dot-2 {
+        animation: typingDotPulse 1.4s infinite ease-in-out 0.2s;
+      }
+      .typing-dot-3 {
+        animation: typingDotPulse 1.4s infinite ease-in-out 0.4s;
+      }
+
+      /* Magnifying glass subtle counter-float */
+      .magnifying-glass-group {
+        animation: lensSubtleFloat 3.8s ease-in-out infinite alternate;
+        transform-origin: 198px 116px;
+      }
+
+      /* Floating sparkles */
+      .sparkle-1 {
+        animation: sparkleTwinkle 2.5s infinite ease-in-out;
+      }
+      .sparkle-2 {
+        animation: sparkleTwinkle 3.2s infinite ease-in-out 0.8s;
+      }
+      .particle-dot {
+        animation: particleFloat 4s infinite ease-in-out;
+      }
+    }
+  }
+
+  /* 3. Main 404 Typography */
+  .error-number-container {
+    margin-bottom: 4px;
+
+    .error-code {
+      font-size: 88px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -2.5px;
+      margin: 0;
+      background: linear-gradient(135deg, #c084fc 0%, #818cf8 45%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 6px 20px rgba(99, 102, 241, 0.35));
+    }
+  }
+
+  .error-text-container {
+    margin-bottom: 30px;
+    max-width: 460px;
+
+    .error-heading {
+      font-size: 27px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin: 0 0 10px 0;
+      letter-spacing: -0.3px;
+    }
+
+    .error-description {
+      font-size: 15px;
+      line-height: 1.55;
+      color: #94a3b8;
+      margin: 0;
+    }
+  }
+
+  /* 5. Navigation Action Buttons */
+  .not-found-actions-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+
+    .btn-not-found {
+      height: 48px;
+      padding: 0 24px;
+      border-radius: 12px;
+      font-size: 14.5px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+      outline: none;
+
+      .btn-icon {
+        flex-shrink: 0;
+      }
+
+      &:focus-visible {
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5);
+      }
+    }
+
+    .btn-primary-home {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 8px 24px -4px rgba(99, 102, 241, 0.45);
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 28px -2px rgba(99, 102, 241, 0.6);
+        filter: brightness(1.08);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+
+    .btn-secondary-back {
+      background: rgba(255, 255, 255, 0.04);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      backdrop-filter: blur(4px);
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.09);
+        border-color: rgba(255, 255, 255, 0.32);
+        color: #ffffff;
+        transform: translateY(-2px);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+
+  /* =========================================================================
+     7. LIGHT THEME OVERRIDES
+     ========================================================================= */
+  :root[data-theme="light"] &,
+  [data-theme="light"] &,
+  .theme-light & {
+    background-color: #f8fafc;
+    background-image: radial-gradient(ellipse at 50% 20%, #ede9fe 0%, #f8fafc 85%);
+    color: #0f172a;
+
+    .not-found-ambient-bg {
+      .glow-sphere-purple {
+        background: radial-gradient(circle, rgba(168, 85, 247, 0.14) 0%, transparent 70%);
+      }
+      .glow-sphere-blue {
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+      }
+      .glow-grid-overlay {
+        background-image: linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+                          linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+      }
+    }
+
+    .illustration-container .chat-404-svg {
+      .chat-window-bg {
+        fill: #ffffff;
+      }
+      .chat-window-header-bg {
+        fill: #f1f5f9;
+      }
+      .chat-window-divider {
+        stroke: #e2e8f0;
+      }
+      .chat-bar-placeholder {
+        fill: #cbd5e1;
+      }
+      .msg-avatar {
+        fill: #94a3b8;
+      }
+      .msg-bubble-received {
+        fill: #f1f5f9;
+      }
+      .msg-text-line {
+        fill: #94a3b8;
+      }
+      .msg-bubble-typing {
+        fill: #f1f5f9;
+      }
+      .typing-dot {
+        fill: #64748b;
+      }
+      .lens-glass-surface {
+        fill: rgba(255, 255, 255, 0.7);
+      }
+    }
+
+    .error-number-container .error-code {
+      background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 50%, #0284c7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 6px 14px rgba(79, 70, 229, 0.22));
+    }
+
+    .error-text-container {
+      .error-heading {
+        color: #0f172a;
+      }
+      .error-description {
+        color: #64748b;
+      }
+    }
+
+    .not-found-actions-group {
+      .btn-primary-home {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        color: #ffffff;
+        box-shadow: 0 8px 20px -3px rgba(79, 70, 229, 0.35);
+
+        &:hover {
+          box-shadow: 0 12px 24px -2px rgba(79, 70, 229, 0.5);
+        }
+      }
+
+      .btn-secondary-back {
+        background: #ffffff;
+        color: #334155;
+        border: 1px solid #cbd5e1;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+
+        &:hover {
+          background: #f1f5f9;
+          border-color: #94a3b8;
+          color: #0f172a;
+        }
+      }
+    }
+  }
+
+  /* =========================================================================
+     8. RESPONSIVE DESIGN (Tablets & Mobile)
+     ========================================================================= */
+  @media (max-width: 640px) {
+    padding: 24px 16px;
+
+    .not-found-header {
+      margin-bottom: 18px;
+      .not-found-logo-link .not-found-logo-img {
+        height: 38px;
+      }
+    }
+
+    .illustration-container {
+      max-width: 270px;
+    }
+
+    .error-number-container .error-code {
+      font-size: 72px;
+      letter-spacing: -1.5px;
+    }
+
+    .error-text-container {
+      margin-bottom: 24px;
+      .error-heading {
+        font-size: 23px;
+      }
+      .error-description {
+        font-size: 14px;
+      }
+    }
+  }
+
+  @media (max-width: 480px) {
+    padding: 20px 14px;
+
+    .illustration-container {
+      max-width: 240px;
+      margin-bottom: 8px;
+    }
+
+    .error-number-container .error-code {
+      font-size: 60px;
+    }
+
+    .error-text-container {
+      .error-heading {
+        font-size: 21px;
+      }
+      .error-description {
+        font-size: 13.5px;
+      }
+    }
+
+    /* Buttons stack vertically on narrow mobile screens */
+    .not-found-actions-group {
+      flex-direction: column;
+      width: 100%;
+      gap: 10px;
+
+      .btn-not-found {
+        width: 100%;
+        height: 46px;
+      }
+    }
+  }
+}
+
+/* =========================================================================
+   9. KEYFRAME ANIMATIONS & ACCESSIBILITY (prefers-reduced-motion)
+   ========================================================================= */
+@keyframes fadeInEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes floatIllustration {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes lensSubtleFloat {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    transform: translateY(-4px) rotate(2deg);
+  }
+}
+
+@keyframes typingDotPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes sparkleTwinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes particleFloat {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-5px);
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .not-found-page .not-found-card,
+  .not-found-page .illustration-container,
+  .not-found-page .magnifying-glass-group,
+  .not-found-page .typing-dot-1,
+  .not-found-page .typing-dot-2,
+  .not-found-page .typing-dot-3,
+  .not-found-page .sparkle-1,
+  .not-found-page .sparkle-2,
+  .not-found-page .particle-dot {
+    animation: none !important;
+    transition: none !important;
+  }
+}

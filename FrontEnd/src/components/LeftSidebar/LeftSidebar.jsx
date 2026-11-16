@@ -68,7 +68,18 @@ export const LeftSidebar = () => {
     <aside className="lime-sidebar left-sidebar">
       {/* Brand Header */}
       <div className="sidebar-brand">
-        <Link to="/" className="sidebar-brand-link brand-logo-link" aria-label="Lime Home">
+        <Link
+          to="/"
+          className="sidebar-brand-link brand-logo-link"
+          aria-label="Lime Home"
+          title="Click to refresh Lime"
+          onClick={(e) => {
+            if (location.pathname === "/") {
+              e.preventDefault();
+              window.location.reload();
+            }
+          }}
+        >
           <img
             src={theme === "light" ? limeLogoFullLight : limeLogoFull}
             alt="Lime"
