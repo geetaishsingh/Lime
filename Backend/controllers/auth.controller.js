@@ -100,53 +100,71 @@ export const register = async (req, res) => {
       });
     }
 
-    // Check duplicate username
-    const [existingUsername, existingPendingUsername, existingPendingEmail] =
-      await Promise.all([
-        User.findOne({ username: cleanUsername }),
-        PendingSignup.findOne({ username: cleanUsername }),
-        PendingSignup.findOne({ email: cleanEmail }),
-      ]);
-    if (
-      (existingUsername &&
-        existingUsername._id.toString() !== existingEmail?._id?.toString()) ||
-      (existingPendingUsername &&
-        existingPendingUsername.email !== cleanEmail)
-    ) {
+    // Clean up unverified legacy user with this email so it doesn't block registration
+    if (existingEmail && !existingEmail.isEmailVerified) {
+      await existingEmail.deleteOne();
+    }
+
+    // Check duplicate username in registered users
+    const existingUsername = await User.findOne({ username: cleanUsername });
+    if (existingUsername) {
       return res.status(400).json({
         message: "This username is already taken. Please pick another.",
         success: false,
       });
     }
 
+    // Check if another user has an active (non-expired) pending signup with this username
+    const conflictingPending = await PendingSignup.findOne({
+      username: cleanUsername,
+      email: { $ne: cleanEmail },
+      otpExpires: { $gte: new Date() },
+    });
+    if (conflictingPending) {
+      return res.status(400).json({
+        message: "This username is temporarily reserved. Please choose another username.",
+        success: false,
+      });
+    }
+
+    // Clean up any stale/expired pending signups for this email or username
+    await PendingSignup.deleteMany({
+      $or: [
+        { email: cleanEmail },
+        { username: cleanUsername, otpExpires: { $lt: new Date() } },
+      ],
+    });
+
     const hashPassword = await bcrypt.hash(password, 10);
     // Generate secure 6-digit OTP
     const otp = randomInt(100000, 1000000).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    const pendingSignup =
-      existingPendingEmail || new PendingSignup({ email: cleanEmail });
-    pendingSignup.username = cleanUsername;
-    pendingSignup.name = name ? name.trim() : existingEmail?.name || "";
-    pendingSignup.password = hashPassword;
-    pendingSignup.otp = otp;
-    pendingSignup.otpExpires = otpExpires;
-    pendingSignup.otpAttempts = 0;
-    await pendingSignup.save();
-
-    // Move legacy unverified accounts out of the users collection.
-    if (existingEmail && !existingEmail.isEmailVerified) {
-      await existingEmail.deleteOne();
-    }
+    // Atomic upsert for pending signup
+    await PendingSignup.findOneAndUpdate(
+      { email: cleanEmail },
+      {
+        username: cleanUsername,
+        name: name ? name.trim() : "",
+        password: hashPassword,
+        otp,
+        otpExpires,
+        otpAttempts: 0,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
     // Dispatch email
-    await sendSignupOtpMail(cleanEmail, otp);
+    const mailResult = await sendSignupOtpMail(cleanEmail, otp);
 
     return res.status(200).json({
-      message: "Verification code sent to your email. Please verify to activate your account.",
+      message: mailResult?.warning
+        ? `Verification code created. ${mailResult.warning}`
+        : "Verification code sent to your email. Please verify to activate your account.",
       email: cleanEmail,
       requiresOtp: true,
       success: true,
+      ...(mailResult?.previewOtp ? { devOtp: mailResult.previewOtp } : {}),
     });
   } catch (error) {
     console.error("Register error:", error);
