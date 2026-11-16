@@ -10,6 +10,16 @@ import {
 } from "../store/user.slice.js";
 import authStorage from "../utils/authStorage.js";
 
+const isCurrentUserNotFound = (error) => {
+  const message = error?.response?.data?.message;
+  return (
+    error?.response?.status === 404 &&
+    (error?.response?.data?.code === "USER_NOT_FOUND" ||
+      (typeof message === "string" &&
+        message.trim().toLowerCase() === "user not found"))
+  );
+};
+
 const useGetUser = () => {
   const dispatch = useDispatch();
 
@@ -42,9 +52,7 @@ const useGetUser = () => {
           response = await requestCurrentUser();
         } catch (error) {
           const bearerUserMissing =
-            error?.response?.status === 404 &&
-            error?.response?.data?.code === "USER_NOT_FOUND" &&
-            authStorage.getAccessToken();
+            isCurrentUserNotFound(error) && authStorage.getAccessToken();
 
           if (!bearerUserMissing) throw error;
 
@@ -72,9 +80,7 @@ const useGetUser = () => {
         if (!isMounted) return;
 
         const status = error?.response?.status;
-        const userWasDeleted =
-          status === 404 &&
-          error?.response?.data?.code === "USER_NOT_FOUND";
+        const userWasDeleted = isCurrentUserNotFound(error);
 
         if (status === 401 || userWasDeleted) {
           authStorage.clearTokens();
