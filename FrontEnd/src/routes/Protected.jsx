@@ -5,7 +5,9 @@ import limeLogoIcon from "../assets/lime-logo-icon.png";
 import limeLogoIconLight from "../assets/lime-logo-icon-light.png";
 
 const Protected = () => {
-  const { user, loading, theme } = useSelector((state) => state.user);
+  const { user, loading, theme, authVerificationError } = useSelector(
+    (state) => state.user
+  );
 
   if (loading) {
     return (
@@ -22,6 +24,26 @@ const Protected = () => {
           </div>
           <h2>Lime</h2>
           <div className="lime-loading-pulse"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user && authVerificationError) {
+    return (
+      <div className="lime-splash-screen" role="alert">
+        <div className="lime-splash-content">
+          <h2>Unable to verify your session</h2>
+          <p>
+            The authentication service could not verify your session
+            {typeof authVerificationError === "number"
+              ? ` (HTTP ${authVerificationError})`
+              : ""}
+            . Please try again.
+          </p>
+          <button type="button" onClick={() => window.location.reload()}>
+            Retry
+          </button>
         </div>
       </div>
     );

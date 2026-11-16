@@ -2,7 +2,7 @@
 import { useDispatch } from "react-redux";
 import axios from "axios";
 import { serverUrl } from "../App";
-import { setuser } from "../store/user.slice.js";
+import { setAuthVerificationError, setuser } from "../store/user.slice.js";
 
 const useGetUser = () => {
   const dispatch = useDispatch();
@@ -17,8 +17,16 @@ const useGetUser = () => {
           dispatch(setuser(data));
         }
       } catch (error) {
-        if (isMounted) {
+        if (!isMounted) return;
+
+        const status = error.response?.status;
+        const userWasDeleted =
+          status === 404 && error.response?.data?.message === "User not found";
+
+        if (status === 401 || userWasDeleted) {
           dispatch(setuser(null));
+        } else {
+          dispatch(setAuthVerificationError(status || null));
         }
       }
     };

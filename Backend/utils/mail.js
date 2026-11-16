@@ -59,16 +59,10 @@ export const sendSignupOtpMail = async (to, otp) => {
       return { success: true, method: "smtp" };
     } catch (err) {
       console.error("[Email Error] Failed to send via SMTP:", err.message);
-      console.log(`\n======================================================`);
-      console.log(`[LIME DEV EMAIL FALLBACK] SIGNUP OTP for ${to}: ${otp}`);
-      console.log(`======================================================\n`);
       return { success: true, method: "dev_fallback" };
     }
   } else {
     // Development fallback
-    console.log(`\n======================================================`);
-    console.log(`[LIME DEV EMAIL FALLBACK] SIGNUP OTP for ${to}: ${otp}`);
-    console.log(`======================================================\n`);
     return { success: true, method: "dev_fallback" };
   }
 };
@@ -104,15 +98,9 @@ export const sendOtpmail = async (to, otp) => {
       return { success: true, method: "smtp" };
     } catch (err) {
       console.error("[Email Error] Failed to send via SMTP:", err.message);
-      console.log(`\n======================================================`);
-      console.log(`[LIME DEV EMAIL FALLBACK] RESET OTP for ${to}: ${otp}`);
-      console.log(`======================================================\n`);
       return { success: true, method: "dev_fallback" };
     }
   } else {
-    console.log(`\n======================================================`);
-    console.log(`[LIME DEV EMAIL FALLBACK] RESET OTP for ${to}: ${otp}`);
-    console.log(`======================================================\n`);
     return { success: true, method: "dev_fallback" };
   }
 };

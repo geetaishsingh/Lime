@@ -8,6 +8,7 @@ const savedTheme =
 const initialState = {
   user: null,
   loading: true,
+  authVerificationError: null,
   theme: savedTheme,
   posts: [],
   userPosts: [],
@@ -27,6 +28,7 @@ const userSlice = createSlice({
     setuser: (state, action) => {
       state.user = action.payload || null;
       state.loading = false;
+      state.authVerificationError = null;
       if (action.payload && action.payload.bookmarks) {
         state.myBookmarks = action.payload.bookmarks;
       } else if (!action.payload) {
@@ -35,6 +37,10 @@ const userSlice = createSlice({
         state.notifications = [];
         state.unreadNotificationsCount = 0;
       }
+    },
+    setAuthVerificationError: (state, action) => {
+      state.authVerificationError = action.payload;
+      state.loading = false;
     },
     setTheme: (state, action) => {
       state.theme = action.payload;
@@ -210,6 +216,7 @@ const userSlice = createSlice({
     resetUserState: (state) => {
       state.user = null;
       state.loading = false;
+      state.authVerificationError = null;
       state.posts = [];
       state.userPosts = [];
       state.myLikes = [];
@@ -225,6 +232,7 @@ const userSlice = createSlice({
 
 export const {
   setuser,
+  setAuthVerificationError,
   setTheme,
   toggleTheme,
   setPosts,

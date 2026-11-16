@@ -114,11 +114,8 @@ app.use((err, req, res, next) => {
 // Start Server
 connectDb()
   .then(() => {
-    console.log("MongoDB connected successfully");
     initChatCleanup(); // Automatically sweeps expired 24h chats & attachments
-    server.listen(PORT, () => {
-      console.log(`C Lime Backend running on http://localhost:${PORT}`);
-    });
+    server.listen(PORT);
   })
   .catch(async (error) => {
     console.error("MongoDB Connection Failed:", error.message);

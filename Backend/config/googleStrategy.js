@@ -22,13 +22,6 @@ const googleCallbackUrl =
       ? ""
       : normalizeCallbackUrl(undefined, "/api/auth/google/callback"));
 
-console.info(
-  `[Google OAuth] environment=${nodeEnv} ` +
-    `clientIdLoaded=${Boolean(googleClientId)} ` +
-    `clientSecretLoaded=${Boolean(googleClientSecret)} ` +
-    `callbackURL=${googleCallbackUrl || "not configured"}`
-);
-
 if (googleClientId && googleClientSecret && !googleCallbackUrl) {
   throw new Error(
     "Google OAuth is enabled in production, but GOOGLE_CALLBACK_URL or BACKEND_URL is not configured."
