@@ -89,8 +89,10 @@ if (googleClientId && googleClientSecret) {
               )}&background=10b981&color=fff&size=256`,
             authProvider: ["google"],
             isEmailVerified: true,
+            passwordPromptDismissed: false,
           });
 
+          user._isNewUser = true;
           return done(null, user);
         } catch (error) {
           console.error("Google Strategy Error:", error);

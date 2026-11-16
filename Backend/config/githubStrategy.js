@@ -67,8 +67,10 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
               )}&background=10b981&color=fff&size=256`,
             authProvider: ["github"],
             isEmailVerified: true,
+            passwordPromptDismissed: false,
           });
 
+          user._isNewUser = true;
           return done(null, user);
         } catch (error) {
           console.error("GitHub Strategy Error:", error);

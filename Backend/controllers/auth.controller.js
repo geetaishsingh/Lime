@@ -36,6 +36,11 @@ const sanitizeUser = (user) => ({
   gender: user.gender,
   isPrivate: user.isPrivate || false,
   isEmailVerified: user.isEmailVerified,
+  hasPassword: Boolean(user.password),
+  hasGoogle: Boolean(user.googleId),
+  hasGithub: Boolean(user.githubId),
+  passwordPromptDismissed: Boolean(user.passwordPromptDismissed),
+  authProvider: user.authProvider || [],
   followers: user.followers || [],
   following: user.following || [],
   posts: user.posts || [],
@@ -788,7 +793,10 @@ export const googleCallback = async (req, res) => {
     res.cookie("token", token, getTokenCookieOptions());
     res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
 
-    return res.redirect(`${clientUrl}/#token=${token}&refreshToken=${refreshToken}`);
+    const isNew = Boolean(user._isNewUser || (!user.password && user.passwordPromptDismissed === false));
+    const newOAuthParam = isNew ? "&newOAuth=true" : "";
+
+    return res.redirect(`${clientUrl}/#token=${token}&refreshToken=${refreshToken}${newOAuthParam}`);
   } catch (error) {
     console.error("[Lime Auth] Google Callback Error:", error);
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
@@ -809,7 +817,10 @@ export const githubCallback = async (req, res) => {
     res.cookie("token", token, getTokenCookieOptions());
     res.cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
 
-    return res.redirect(`${clientUrl}/#token=${token}&refreshToken=${refreshToken}`);
+    const isNew = Boolean(user._isNewUser || (!user.password && user.passwordPromptDismissed === false));
+    const newOAuthParam = isNew ? "&newOAuth=true" : "";
+
+    return res.redirect(`${clientUrl}/#token=${token}&refreshToken=${refreshToken}${newOAuthParam}`);
   } catch (error) {
     console.error("[Lime Auth] GitHub Callback Error:", error);
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";

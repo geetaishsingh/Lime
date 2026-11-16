@@ -26,6 +26,7 @@ const MessagePage = lazyWithRetry(() => import("../pages/Messages/Messages"));
 const Search = lazyWithRetry(() => import("../pages/Search/Search"));
 const Notifications = lazyWithRetry(() => import("../pages/Notifications/Notifications"));
 const CallPage = lazyWithRetry(() => import("../pages/Call/Call"));
+const NotFound = lazyWithRetry(() => import("../pages/NotFound/NotFound"));
 
 const routes = createBrowserRouter([
   {
@@ -149,6 +150,14 @@ const routes = createBrowserRouter([
             ),
           },
         ],
+      },
+      {
+        path: "*",
+        element: (
+          <Suspense fallback={<div className="lime-splash-screen" />}>
+            <NotFound />
+          </Suspense>
+        ),
       },
     ],
   },

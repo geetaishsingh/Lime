@@ -1,5 +1,6 @@
 ﻿import User from "../models/user.model.js";
 import Report from "../models/report.model.js";
+import bcrypt from "bcryptjs";
 import { processAndUploadMedia } from "../utils/mediaStorage.js";
 import { deleteFromCloudinary, cleanupCloudinaryOnFailure } from "../utils/uploadToCloudinary.js";
 import { createNotification } from "./notification.controller.js";
@@ -12,14 +13,24 @@ export const getCurrentUser = async (req, res) => {
   try {
     const userId = req.userId;
     const user = await User.findById(userId)
-      .select("-password -signupOtp -resetOtp")
+      .select("-signupOtp -resetOtp")
       .populate("bookmarks");
 
     if (!user) {
       return res.status(404).json({ message: "User not found", success: false });
     }
 
-    return res.status(200).json(user);
+    const userObj = user.toObject();
+    const hasPassword = Boolean(user.password);
+    delete userObj.password;
+
+    return res.status(200).json({
+      ...userObj,
+      hasPassword,
+      hasGoogle: Boolean(user.googleId),
+      hasGithub: Boolean(user.githubId),
+      passwordPromptDismissed: Boolean(user.passwordPromptDismissed),
+    });
   } catch (error) {
     return res.status(500).json({
       message: `Get current user error: ${error.message}`,
@@ -450,6 +461,164 @@ export const reportContent = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       message: `Report error: ${error.message}`,
+      success: false,
+    });
+  }
+};
+
+/**
+ * Set an optional password for OAuth users (Google / GitHub)
+ */
+export const setPassword = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { newPassword, confirmPassword } = req.body;
+
+    if (!newPassword || typeof newPassword !== "string") {
+      return res.status(400).json({
+        message: "New password is required.",
+        success: false,
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters long.",
+        success: false,
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        message: "Passwords do not match.",
+        success: false,
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found.",
+        success: false,
+      });
+    }
+
+    const hashPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashPassword;
+    if (!user.authProvider.includes("local")) {
+      user.authProvider.push("local");
+    }
+    user.passwordPromptDismissed = true;
+    await user.save();
+
+    return res.status(200).json({
+      message: "Password configured successfully! You can now log in using your email and password.",
+      success: true,
+      hasPassword: true,
+      passwordPromptDismissed: true,
+      authProvider: user.authProvider,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: `Failed to set password: ${error.message}`,
+      success: false,
+    });
+  }
+};
+
+/**
+ * Change existing password
+ */
+export const changePassword = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({
+        message: "New password must be at least 6 characters long.",
+        success: false,
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        message: "Passwords do not match.",
+        success: false,
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found.",
+        success: false,
+      });
+    }
+
+    // If user already had a password, verify current password
+    if (user.password) {
+      if (!currentPassword) {
+        return res.status(400).json({
+          message: "Current password is required to change password.",
+          success: false,
+        });
+      }
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({
+          message: "Incorrect current password.",
+          success: false,
+        });
+      }
+    }
+
+    const hashPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashPassword;
+    if (!user.authProvider.includes("local")) {
+      user.authProvider.push("local");
+    }
+    user.passwordPromptDismissed = true;
+    await user.save();
+
+    return res.status(200).json({
+      message: "Password updated successfully.",
+      success: true,
+      hasPassword: true,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: `Failed to change password: ${error.message}`,
+      success: false,
+    });
+  }
+};
+
+/**
+ * Skip optional password prompt
+ */
+export const skipPasswordPrompt = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found.",
+        success: false,
+      });
+    }
+
+    user.passwordPromptDismissed = true;
+    await user.save();
+
+    return res.status(200).json({
+      message: "Password setup skipped.",
+      success: true,
+      passwordPromptDismissed: true,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: `Failed to skip prompt: ${error.message}`,
       success: false,
     });
   }

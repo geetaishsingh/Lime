@@ -135,6 +135,15 @@ export const authStorage = {
 
       const token = params.get("token") || params.get("accessToken");
       const refreshToken = params.get("refreshToken") || params.get("refresh");
+      const isNewOAuth = params.get("newOAuth") === "true";
+
+      if (isNewOAuth) {
+        try {
+          sessionStorage.setItem("lime_show_password_prompt", "true");
+        } catch (e) {
+          console.warn("Could not set lime_show_password_prompt in sessionStorage:", e);
+        }
+      }
 
       if (token || refreshToken) {
         if (token) authStorage.setAccessToken(token);

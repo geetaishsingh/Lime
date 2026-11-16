@@ -236,6 +236,17 @@ const userSlice = createSlice({
       state.unreadMessagesCount = Math.max(0, state.unreadMessagesCount - 1);
     },
     // Reset on logout
+    updateUserSecurityState: (state, action) => {
+      if (state.user) {
+        state.user = {
+          ...state.user,
+          ...action.payload,
+        };
+        try {
+          localStorage.setItem("lime_cached_user", JSON.stringify(state.user));
+        } catch (_e) {}
+      }
+    },
     resetUserState: (state) => {
       state.user = null;
       state.loading = false;
@@ -283,6 +294,7 @@ export const {
   markAllNotificationsReadInStore,
   setUnreadMessagesCount,
   decrementUnreadMessagesCount,
+  updateUserSecurityState,
   resetUserState,
 } = userSlice.actions;
 

@@ -40,6 +40,10 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: ["local"],
     },
+    passwordPromptDismissed: {
+      type: Boolean,
+      default: false,
+    },
     password: {
       type: String,
       required: function () {
