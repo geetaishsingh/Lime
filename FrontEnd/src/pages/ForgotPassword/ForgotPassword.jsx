@@ -26,6 +26,8 @@ const ForgotPassword = () => {
   const [resending, setResending] = useState(false);
   const [timer, setTimer] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
+  const [devOtpCode, setDevOtpCode] = useState("");
+  const [otpWarning, setOtpWarning] = useState("");
 
   const inputRefs = useRef([]);
   const navigate = useNavigate();
@@ -105,6 +107,18 @@ const ForgotPassword = () => {
 
       if (data?.success) {
         toast.success(data.message || "Recovery code sent to your email!");
+        if (data?.previewOtp) {
+          setDevOtpCode(data.previewOtp);
+          setOtpWarning(data.warning || "");
+          setOtp(data.previewOtp.split(""));
+          toast(
+            `Email server fallback: your reset code is ${data.previewOtp}`,
+            { icon: "ℹ️", duration: 8000 }
+          );
+        } else {
+          setDevOtpCode("");
+          setOtpWarning("");
+        }
         setStep(2);
         setTimer(60);
       }
@@ -133,8 +147,16 @@ const ForgotPassword = () => {
 
       if (data?.success) {
         toast.success("A fresh recovery code has been sent!");
+        if (data?.previewOtp) {
+          setDevOtpCode(data.previewOtp);
+          setOtpWarning(data.warning || "");
+          setOtp(data.previewOtp.split(""));
+        } else {
+          setDevOtpCode("");
+          setOtpWarning("");
+          setOtp(["", "", "", "", "", ""]);
+        }
         setTimer(60);
-        setOtp(["", "", "", "", "", ""]);
         inputRefs.current[0]?.focus();
       }
     } catch (err) {
@@ -340,6 +362,29 @@ const ForgotPassword = () => {
             {/* STEP 2: 6-Digit OTP Form */}
             {step === 2 && (
               <form onSubmit={handleVerifyOtp} className="auth-main-form">
+                {devOtpCode && (
+                  <div className="dev-otp-notice">
+                    <div className="dev-otp-header">
+                      <ShieldCheck size={16} color="#84cc16" />
+                      <span>Server Fallback Code</span>
+                    </div>
+                    <p className="dev-otp-desc">
+                      {otpWarning || "Email server is in fallback mode. Use this code to continue:"}
+                    </p>
+                    <div
+                      className="dev-otp-badge"
+                      onClick={() => {
+                        setOtp(devOtpCode.split(""));
+                        toast.success("Code auto-filled!");
+                      }}
+                      title="Click to auto-fill"
+                    >
+                      <span className="dev-otp-number">{devOtpCode}</span>
+                      <span className="dev-otp-click-hint">Tap to auto-fill</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="otp-inputs-wrapper" onPaste={handleOtpPaste}>
                   {otp.map((digit, idx) => (
                     <input
@@ -355,6 +400,10 @@ const ForgotPassword = () => {
                     />
                   ))}
                 </div>
+
+                <p className="otp-spam-hint">
+                  Check your <strong>Spam / Junk</strong> folder if the email doesn&apos;t arrive in your inbox within a minute.
+                </p>
 
                 <button
                   type="submit"

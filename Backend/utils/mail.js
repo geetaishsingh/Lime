@@ -3,9 +3,10 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const emailUser = process.env.EMAIL || process.env.EMAIL_USER;
-const emailPass =
-  process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD || process.env.PASSWORD;
+const emailUser = (process.env.EMAIL || process.env.EMAIL_USER || "").trim();
+const rawPass =
+  process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD || process.env.PASSWORD || "";
+const emailPass = rawPass.replace(/\s+/g, "");
 
 const isEmailConfigured = Boolean(
   emailUser &&
@@ -17,14 +18,13 @@ const isEmailConfigured = Boolean(
 
 let transporter = null;
 if (isEmailConfigured) {
-  const cleanEmailPass = emailPass ? emailPass.replace(/\s+/g, "") : "";
   transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
     secure: false, // Port 587 with STARTTLS is cloud & Render firewall-friendly
     auth: {
       user: emailUser,
-      pass: cleanEmailPass,
+      pass: emailPass,
     },
     tls: {
       rejectUnauthorized: false,
@@ -34,6 +34,44 @@ if (isEmailConfigured) {
     socketTimeout: 20000,
   });
 }
+
+const sendMailWithFallback = async (mailOptions) => {
+  if (!transporter) throw new Error("Email transporter not configured");
+
+  try {
+    return await transporter.sendMail(mailOptions);
+  } catch (firstErr) {
+    const isNetworkError =
+      firstErr.code === "ETIMEDOUT" ||
+      firstErr.code === "ECONNECTION" ||
+      firstErr.code === "ESOCKET" ||
+      firstErr.code === "ENOTFOUND";
+
+    if (isNetworkError && isEmailConfigured) {
+      try {
+        const sslTransporter = nodemailer.createTransport({
+          host: "smtp.gmail.com",
+          port: 465,
+          secure: true,
+          auth: {
+            user: emailUser,
+            pass: emailPass,
+          },
+          tls: {
+            rejectUnauthorized: false,
+          },
+          connectionTimeout: 15000,
+          greetingTimeout: 15000,
+          socketTimeout: 20000,
+        });
+        return await sslTransporter.sendMail(mailOptions);
+      } catch (_sslErr) {
+        throw firstErr;
+      }
+    }
+    throw firstErr;
+  }
+};
 
 const ensureEmailConfigured = () => {
   if (!isEmailConfigured || !transporter) {
@@ -70,7 +108,7 @@ export const sendSignupOtpMail = async (to, otp) => {
   }
 
   try {
-    await transporter.sendMail({
+    await sendMailWithFallback({
       from: `"Lime Social" <${emailUser}>`,
       to,
       subject: "Verify your email for Lime",
@@ -118,7 +156,7 @@ export const sendLoginOtpMail = async (to, otp) => {
   }
 
   try {
-    await transporter.sendMail({
+    await sendMailWithFallback({
       from: `"Lime Security" <${emailUser}>`,
       to,
       subject: "Your Lime sign-in code",
@@ -159,10 +197,10 @@ export const sendOtpmail = async (to, otp) => {
   }
 
   try {
-    await transporter.sendMail({
+    await sendMailWithFallback({
         from: `"Lime Security" <${emailUser}>`,
         to,
-        subject: "Reset your Lime password",
+        subject: "Reset your Lime password - Recovery Code",
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff;">
             <div style="text-align: center; margin-bottom: 24px;">

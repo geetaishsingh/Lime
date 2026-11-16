@@ -155,14 +155,21 @@ export const register = async (req, res) => {
     );
 
     // Dispatch email
-    await sendSignupOtpMail(cleanEmail, otp);
+    const mailResult = await sendSignupOtpMail(cleanEmail, otp);
 
-    return res.status(200).json({
+    const responsePayload = {
       message: "Verification code sent to your email. Please verify to activate your account.",
       email: cleanEmail,
       requiresOtp: true,
       success: true,
-    });
+    };
+
+    if (mailResult?.previewOtp) {
+      responsePayload.previewOtp = mailResult.previewOtp;
+      responsePayload.warning = mailResult.warning;
+    }
+
+    return res.status(200).json(responsePayload);
   } catch (error) {
     console.error("Register error:", error);
     return res.status(500).json({
@@ -307,12 +314,19 @@ export const resendSignupOtp = async (req, res) => {
       pendingSignup.otpAttempts = 0;
       await pendingSignup.save();
 
-      await sendSignupOtpMail(cleanEmail, otp);
+      const mailResult = await sendSignupOtpMail(cleanEmail, otp);
 
-      return res.status(200).json({
+      const responsePayload = {
         message: "A fresh verification code has been sent to your email.",
         success: true,
-      });
+      };
+
+      if (mailResult?.previewOtp) {
+        responsePayload.previewOtp = mailResult.previewOtp;
+        responsePayload.warning = mailResult.warning;
+      }
+
+      return res.status(200).json(responsePayload);
     }
 
     const user = await User.findOne({ email: cleanEmail });
@@ -330,12 +344,19 @@ export const resendSignupOtp = async (req, res) => {
     user.signupOtpAttempts = 0;
     await user.save();
 
-    await sendSignupOtpMail(cleanEmail, otp);
+    const mailResult = await sendSignupOtpMail(cleanEmail, otp);
 
-    return res.status(200).json({
+    const responsePayload = {
       message: "A fresh verification code has been sent to your email.",
       success: true,
-    });
+    };
+
+    if (mailResult?.previewOtp) {
+      responsePayload.previewOtp = mailResult.previewOtp;
+      responsePayload.warning = mailResult.warning;
+    }
+
+    return res.status(200).json(responsePayload);
   } catch (error) {
     return res.status(500).json({ message: `Resend OTP error: ${error.message}`, success: false });
   }
@@ -671,12 +692,22 @@ export const sendOtp = async (req, res) => {
     user.isOtpVerified = false;
     await user.save();
 
-    await sendOtpmail(cleanEmail, otp);
+    const mailResult = await sendOtpmail(cleanEmail, otp);
 
-    return res.status(200).json({
-      message: "Password reset code sent to your email.",
+    const responsePayload = {
+      message: mailResult?.warning
+        ? "Recovery code generated. If you don't receive an email, use the code displayed below."
+        : "Password reset code sent to your email. Check your Inbox and Spam folder.",
       success: true,
-    });
+      email: cleanEmail,
+    };
+
+    if (mailResult?.previewOtp) {
+      responsePayload.previewOtp = mailResult.previewOtp;
+      responsePayload.warning = mailResult.warning;
+    }
+
+    return res.status(200).json(responsePayload);
   } catch (error) {
     return res.status(500).json({ message: `Failed to send reset code: ${error.message}`, success: false });
   }
