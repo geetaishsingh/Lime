@@ -65,8 +65,8 @@ const sendMailWithFallback = async (mailOptions) => {
           socketTimeout: 20000,
         });
         return await sslTransporter.sendMail(mailOptions);
-      } catch (_sslErr) {
-        throw firstErr;
+      } catch (sslErr) {
+        throw sslErr;
       }
     }
     throw firstErr;
@@ -90,7 +90,9 @@ const getSmtpFailureMessage = (error, purpose) => {
   if (error?.code === "EAUTH" || Number(error?.responseCode) === 535) {
     return "Gmail rejected the email credentials. Check that EMAIL is your full address and EMAIL_PASS is a Google App Password without spaces.";
   }
-  return `Could not send ${purpose} via email provider.`;
+  const code = error?.code || "SMTP_ERROR";
+  const responseCode = error?.responseCode ? ` (SMTP ${error.responseCode})` : "";
+  return `Could not send ${purpose} via email provider (${code}${responseCode}).`;
 };
 
 /**
