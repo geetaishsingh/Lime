@@ -155,16 +155,13 @@ export const register = async (req, res) => {
     );
 
     // Dispatch email
-    const mailResult = await sendSignupOtpMail(cleanEmail, otp);
+    await sendSignupOtpMail(cleanEmail, otp);
 
     return res.status(200).json({
-      message: mailResult?.warning
-        ? `Verification code created. ${mailResult.warning}`
-        : "Verification code sent to your email. Please verify to activate your account.",
+      message: "Verification code sent to your email. Please verify to activate your account.",
       email: cleanEmail,
       requiresOtp: true,
       success: true,
-      ...(mailResult?.previewOtp ? { devOtp: mailResult.previewOtp } : {}),
     });
   } catch (error) {
     console.error("Register error:", error);

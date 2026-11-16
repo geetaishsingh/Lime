@@ -44,14 +44,10 @@ const VerifyOtp = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // Focus first input on mount & auto-fill dev OTP if present
+  // Clear any code preview saved by older builds and focus the first input.
   useEffect(() => {
-    const preview = readSessionValue("dev_otp_preview");
-    if (preview && preview.length === 6) {
-      setOtp(preview.split(""));
-    } else if (inputRefs.current[0]) {
-      inputRefs.current[0].focus();
-    }
+    removeSessionValue("dev_otp_preview");
+    inputRefs.current[0]?.focus();
   }, []);
 
   // Cooldown countdown timer
