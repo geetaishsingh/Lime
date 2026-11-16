@@ -32,17 +32,31 @@ if (isEmailConfigured) {
   });
 }
 
+const ensureEmailConfigured = () => {
+  if (!isEmailConfigured || !transporter) {
+    throw new Error(
+      "Email delivery is not configured. Set EMAIL and EMAIL_PASS on the backend."
+    );
+  }
+};
+
+const logSmtpFailure = (purpose, error) => {
+  const code = error?.code || "SMTP_ERROR";
+  const responseCode = error?.responseCode ? ` (${error.responseCode})` : "";
+  console.error(`[Email Error] Failed to send ${purpose}: ${code}${responseCode}`);
+};
+
 /**
  * Send Signup verification OTP
  */
 export const sendSignupOtpMail = async (to, otp) => {
-  if (isEmailConfigured && transporter) {
-    try {
-      await transporter.sendMail({
-        from: `"Lime Social" <${emailUser}>`,
-        to,
-        subject: "Verify your email for Lime",
-        html: `
+  ensureEmailConfigured();
+  try {
+    await transporter.sendMail({
+      from: `"Lime Social" <${emailUser}>`,
+      to,
+      subject: "Verify your email for Lime",
+      html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff;">
             <div style="text-align: center; margin-bottom: 24px;">
               <h1 style="color: #10b981; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">Lime</h1>
@@ -60,37 +74,22 @@ export const sendSignupOtpMail = async (to, otp) => {
             <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">&copy; ${new Date().getFullYear()} Lime Social Inc. All rights reserved.</p>
           </div>
         `,
-      });
-      return { success: true, method: "smtp" };
-    } catch (err) {
-      console.error("[Email Error] Failed to send via SMTP:", err.message);
-      console.warn(`[Lime Auth] SMTP delivery failed. Registration OTP for ${to} is: ${otp}`);
-      return {
-        success: true,
-        method: "fallback",
-        previewOtp: otp,
-        warning: "Email sending failed. Please check server logs for verification code.",
-      };
-    }
+    });
+    return { success: true, method: "smtp" };
+  } catch (error) {
+    logSmtpFailure("signup OTP", error);
+    throw new Error("Could not send the verification email. Check backend email settings and try again.");
   }
-
-  console.warn(`[Lime Auth Warning] Email delivery not configured. Registration OTP for ${to} is: ${otp}`);
-  return {
-    success: true,
-    method: "unconfigured_fallback",
-    previewOtp: otp,
-    warning: "Email delivery is not configured on this server.",
-  };
 };
 
 export const sendLoginOtpMail = async (to, otp) => {
-  if (isEmailConfigured && transporter) {
-    try {
-      await transporter.sendMail({
-        from: `"Lime Security" <${emailUser}>`,
-        to,
-        subject: "Your Lime sign-in code",
-        html: `
+  ensureEmailConfigured();
+  try {
+    await transporter.sendMail({
+      from: `"Lime Security" <${emailUser}>`,
+      to,
+      subject: "Your Lime sign-in code",
+      html: `
           <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
             <h1 style="color: #10b981;">Lime sign-in</h1>
             <p>Use this code to finish signing in to Lime:</p>
@@ -98,36 +97,21 @@ export const sendLoginOtpMail = async (to, otp) => {
             <p>This code expires in 10 minutes. If you did not try to sign in, you can ignore this email.</p>
           </div>
         `,
-      });
-      return { success: true, method: "smtp" };
-    } catch (error) {
-      console.error("[Email Error] Failed to send login OTP:", error.message);
-      console.warn(`[Lime Auth] Login OTP for ${to} is: ${otp}`);
-      return {
-        success: true,
-        method: "fallback",
-        previewOtp: otp,
-        warning: "Email sending failed. Please check server logs for login code.",
-      };
-    }
+    });
+    return { success: true, method: "smtp" };
+  } catch (error) {
+    logSmtpFailure("login OTP", error);
+    throw new Error("Could not send the sign-in code. Check backend email settings and try again.");
   }
-
-  console.warn(`[Lime Auth Warning] Email delivery not configured. Login OTP for ${to} is: ${otp}`);
-  return {
-    success: true,
-    method: "unconfigured_fallback",
-    previewOtp: otp,
-    warning: "Email delivery is not configured on this server.",
-  };
 };
 
 /**
  * Send Password Reset OTP
  */
 export const sendOtpmail = async (to, otp) => {
-  if (isEmailConfigured && transporter) {
-    try {
-      await transporter.sendMail({
+  ensureEmailConfigured();
+  try {
+    await transporter.sendMail({
         from: `"Lime Security" <${emailUser}>`,
         to,
         subject: "Reset your Lime password",
@@ -148,25 +132,10 @@ export const sendOtpmail = async (to, otp) => {
             <p style="color: #9ca3af; font-size: 12px; text-align: center;">If you didn't request a password reset, please secure your account immediately.</p>
           </div>
         `,
-      });
-      return { success: true, method: "smtp" };
-    } catch (err) {
-      console.error("[Email Error] Failed to send via SMTP:", err.message);
-      console.warn(`[Lime Auth] Reset OTP for ${to} is: ${otp}`);
-      return {
-        success: true,
-        method: "fallback",
-        previewOtp: otp,
-        warning: "Email sending failed. Please check server logs for reset code.",
-      };
-    }
+    });
+    return { success: true, method: "smtp" };
+  } catch (error) {
+    logSmtpFailure("password reset OTP", error);
+    throw new Error("Could not send the password reset code. Check backend email settings and try again.");
   }
-
-  console.warn(`[Lime Auth Warning] Email delivery not configured. Reset OTP for ${to} is: ${otp}`);
-  return {
-    success: true,
-    method: "unconfigured_fallback",
-    previewOtp: otp,
-    warning: "Email delivery is not configured on this server.",
-  };
 };
