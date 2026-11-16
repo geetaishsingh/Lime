@@ -152,6 +152,13 @@ const Login = () => {
                   </button>
                 </div>
                 {error.passwordError && <p className="field-error">{error.passwordError}</p>}
+                
+                {/* Mobile-visible Forgot Password link */}
+                <div className="mobile-forgot-row">
+                  <Link to="/forgot-password" className="mobile-forgot-link">
+                    Forgot password?
+                  </Link>
+                </div>
               </div>
 
               {/* Mobile Social Buttons (GitHub & Google) */}
