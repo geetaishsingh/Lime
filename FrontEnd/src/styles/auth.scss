@@ -559,6 +559,10 @@
   display: block;
 }
 
+.mobile-forgot-row {
+  display: none;
+}
+
 /* Mobile-only mascot styling */
 @media (max-width: 640px) {
   .auth-container {
@@ -653,6 +657,26 @@
             font-weight: 600;
             margin-top: 4px;
             font-size: 12px;
+          }
+
+          .mobile-forgot-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 4px;
+            margin-bottom: 8px;
+
+            .mobile-forgot-link {
+              font-size: 13px;
+              font-weight: 700;
+              color: #ffffff;
+              text-decoration: underline;
+              text-underline-offset: 3px;
+              opacity: 0.95;
+
+              &:hover {
+                opacity: 1;
+              }
+            }
           }
         }
 

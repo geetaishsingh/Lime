@@ -4,11 +4,11 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
   Home,
-  Search,
   Plus,
-  Send,
-  Heart,
-  Bookmark,
+  Bell,
+  User,
+  MessageCircle,
+  Search,
 } from "lucide-react";
 import LeftSidebar from "../../components/LeftSidebar";
 import limeLogoFull from "../../assets/lime-logo-full.png";
@@ -62,18 +62,12 @@ const Dashboard = () => {
               </Link>
 
               <div className="mobile-header-actions">
-                <Link to="/create-post" className="mobile-header-btn" title="Create Post">
-                  <Plus size={22} />
+                <Link to="/search" className={`mobile-header-btn ${isSearchActive ? "active" : ""}`} title="Search">
+                  <Search size={22} />
                 </Link>
                 <Link to="/notifications" className="mobile-header-btn" title="Notifications">
-                  <Heart size={22} />
+                  <Bell size={22} />
                   {unreadNotificationsCount > 0 && (
-                    <span className="mobile-unread-dot" />
-                  )}
-                </Link>
-                <Link to="/messages" className="mobile-header-btn" title="Messages">
-                  <Send size={22} />
-                  {unreadMessagesCount > 0 && (
                     <span className="mobile-unread-dot" />
                   )}
                 </Link>
@@ -114,15 +108,20 @@ const Dashboard = () => {
                   <span className="dock-label">Home</span>
                 </Link>
 
-                {/* Search */}
+                {/* Messages */}
                 <Link
-                  to="/search"
-                  className={`dock-nav-item ${isSearchActive ? "active" : ""}`}
+                  to="/messages"
+                  className={`dock-nav-item ${isInboxActive ? "active" : ""}`}
                 >
                   <div className="dock-active-contour" />
-                  <Search size={19} className="dock-icon" />
+                  <div className="dock-icon-wrapper">
+                    <MessageCircle size={19} className="dock-icon" />
+                    {unreadMessagesCount > 0 && (
+                      <span className="dock-unread-badge" />
+                    )}
+                  </div>
                   <span className="dock-active-dot" />
-                  <span className="dock-label">Search</span>
+                  <span className="dock-label">Message</span>
                 </Link>
 
                 {/* Create */}
@@ -136,23 +135,7 @@ const Dashboard = () => {
                   <span className="dock-label">Create</span>
                 </Link>
 
-                {/* Inbox */}
-                <Link
-                  to="/messages"
-                  className={`dock-nav-item ${isInboxActive ? "active" : ""}`}
-                >
-                  <div className="dock-active-contour" />
-                  <div className="dock-icon-wrapper">
-                    <Send size={19} className="dock-icon" />
-                    {unreadMessagesCount > 0 && (
-                      <span className="dock-unread-badge" />
-                    )}
-                  </div>
-                  <span className="dock-active-dot" />
-                  <span className="dock-label">Inbox</span>
-                </Link>
-
-                {/* Saved / Profile */}
+                {/* Profile */}
                 <Link
                   to={`/profile/${user?._id}`}
                   className={`dock-nav-item ${isProfileActive ? "active" : ""}`}
@@ -166,11 +149,11 @@ const Dashboard = () => {
                         className="dock-avatar-img"
                       />
                     ) : (
-                      <Bookmark size={19} className="dock-icon" />
+                      <User size={19} className="dock-icon" />
                     )}
                   </div>
                   <span className="dock-active-dot" />
-                  <span className="dock-label">Saved</span>
+                  <span className="dock-label">Profile</span>
                 </Link>
               </div>
             </nav>

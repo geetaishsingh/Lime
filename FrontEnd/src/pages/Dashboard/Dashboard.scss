@@ -94,14 +94,20 @@
     .mobile-header-actions {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 20px;
 
       .mobile-header-btn {
-        color: var(--text-primary);
+        color: var(--text-secondary);
         position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
+        transition: color $transition-fast;
+
+        &:hover,
+        &.active {
+          color: var(--lime-accent);
+        }
 
         .mobile-unread-dot {
           position: absolute;
