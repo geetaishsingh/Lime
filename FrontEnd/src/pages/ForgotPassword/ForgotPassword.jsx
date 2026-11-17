@@ -51,46 +51,10 @@ const ForgotPassword = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const [devOtpCode, setDevOtpCode] = useState("");
   const [otpWarning, setOtpWarning] = useState("");
-  const [wakeStatus, setWakeStatus] = useState(""); // "" | "waking" | "ready"
 
   const inputRefs = useRef([]);
   const navigate = useNavigate();
   const theme = useSelector((state) => state.user.theme);
-
-  // Ping backend on mount to pre-warm Render free tier
-  useEffect(() => {
-    let cancelled = false;
-    const ping = async () => {
-      try {
-        const { data } = await axios.get(`${serverUrl}/`, {
-          withCredentials: false,
-          timeout: 8000,
-        });
-        if (!cancelled) {
-          if (data?.status === "Healthy") {
-            setWakeStatus("ready");
-            setTimeout(() => { if (!cancelled) setWakeStatus(""); }, 2000);
-          }
-        }
-      } catch {
-        if (!cancelled) {
-          setWakeStatus("waking");
-          try {
-            await new Promise((r) => setTimeout(r, 12000));
-            await axios.get(`${serverUrl}/`, { withCredentials: false, timeout: 20000 });
-            if (!cancelled) {
-              setWakeStatus("ready");
-              setTimeout(() => { if (!cancelled) setWakeStatus(""); }, 2000);
-            }
-          } catch {
-            if (!cancelled) setWakeStatus("");
-          }
-        }
-      }
-    };
-    ping();
-    return () => { cancelled = true; };
-  }, []);
 
   // Timer countdown for resending recovery OTP
   useEffect(() => {
@@ -154,16 +118,12 @@ const ForgotPassword = () => {
     try {
       setLoading(true);
       setErrorMsg("");
-      if (wakeStatus !== "ready") setWakeStatus("waking");
 
       const { data } = await retryPost(
         `${serverUrl}/api/auth/send-otp`,
         { email: trimmedEmail },
         { withCredentials: true, timeout: 30000 }
       );
-
-      setWakeStatus("ready");
-      setTimeout(() => setWakeStatus(""), 1500);
 
       if (data?.success) {
         if (data?.previewOtp) {
@@ -183,7 +143,6 @@ const ForgotPassword = () => {
         setTimer(60);
       }
     } catch (err) {
-      setWakeStatus("");
       const status = err?.response?.status;
       let msg;
       if (status === 503 || status === 502 || err?.code === "ERR_NETWORK") {
@@ -299,19 +258,6 @@ const ForgotPassword = () => {
         <div className="register-container">
           <div className="form auth-card">
 
-            {/* Server Wake Status Banner */}
-            {wakeStatus === "waking" && (
-              <div className="server-wakeup-banner">
-                <BeatLoader size={6} color="#84cc16" />
-                <span>Server is starting up — retrying automatically&hellip;</span>
-              </div>
-            )}
-            {wakeStatus === "ready" && (
-              <div className="server-wakeup-banner server-wakeup-banner--ready">
-                <span>✓ Server is ready</span>
-              </div>
-            )}
-
             {/* Header / Brand */}
             <div className="auth-brand">
               <div className="mobile-mascot-wrapper">
@@ -416,9 +362,7 @@ const ForgotPassword = () => {
                   {loading ? (
                     <span className="loading-btn-content">
                       <BeatLoader size={8} color="#fff" />
-                      <span className="loading-btn-text">
-                        {wakeStatus === "waking" ? "Waking server…" : "Sending…"}
-                      </span>
+                      <span className="loading-btn-text">Sending…</span>
                     </span>
                   ) : (
                     <>
