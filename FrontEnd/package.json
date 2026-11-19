@@ -15,7 +15,7 @@
     "date-fns": "^4.4.0",
     "firebase": "^12.15.0",
     "formik": "^2.4.9",
-    "lucide-react": "^1.35.0",
+    "lucide-react": "^1.76.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-hot-toast": "^2.6.0",
@@ -25,6 +25,7 @@
     "react-spinners": "^0.17.0",
     "react-toastify": "^11.1.0",
     "sass": "^1.101.0",
+    "simple-peer": "^9.11.1",
     "slick-carousel": "^1.8.1",
     "socket.io-client": "^4.8.3"
   },

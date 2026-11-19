@@ -1,7 +1,6 @@
 import './Call.scss';
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { io } from "socket.io-client";
 import {
   Mic,
   MicOff,
@@ -10,14 +9,32 @@ import {
   PhoneOff,
   ArrowLeft,
 } from "lucide-react";
-import { serverUrl } from "../../config";
+import { socket } from "../../socket";
 import { callSounds } from "../../utils/callSounds";
 
-const SIGNALING_SERVER_URL = serverUrl;
+const iceServers = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun.cloudflare.com:3478" },
+];
+const turnUrls = import.meta.env.VITE_TURN_SERVER_URL
+  ?.split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
 
-const ICE_SERVERS = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-};
+if (
+  turnUrls?.length &&
+  import.meta.env.VITE_TURN_USERNAME &&
+  import.meta.env.VITE_TURN_CREDENTIAL
+) {
+  iceServers.push({
+    urls: turnUrls,
+    username: import.meta.env.VITE_TURN_USERNAME,
+    credential: import.meta.env.VITE_TURN_CREDENTIAL,
+  });
+}
+
+const ICE_SERVERS = { iceServers };
+const CONNECTION_RECOVERY_TIMEOUT_MS = 30_000;
 
 const CallPage = () => {
   const location = useLocation();
@@ -59,17 +76,22 @@ const CallPage = () => {
   const pcRef = useRef(null);
   const socketRef = useRef(null);
   const durationTimerRef = useRef(null);
+  const connectionTimerRef = useRef(null);
+  const pendingCandidatesRef = useRef([]);
+  const endedRef = useRef(false);
+  const makingOfferRef = useRef(false);
+  const everConnectedRef = useRef(false);
+  const restartAttemptRef = useRef(0);
+  const mountGenerationRef = useRef(0);
 
-  const endCall = useCallback(() => {
-    callSounds.playCallEndTone();
+  const clearConnectionTimer = useCallback(() => {
+    if (connectionTimerRef.current) {
+      clearTimeout(connectionTimerRef.current);
+      connectionTimerRef.current = null;
+    }
+  }, []);
 
-    try {
-      if (socketRef.current && roomId) {
-        socketRef.current.emit("hang-up", { roomId });
-      }
-    } catch (_e) {}
-
-    // Clean up local media tracks
+  const cleanupCallResources = useCallback(() => {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
@@ -86,6 +108,9 @@ const CallPage = () => {
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = null;
     }
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
 
     if (pcRef.current) {
       pcRef.current.close();
@@ -94,10 +119,94 @@ const CallPage = () => {
 
     if (durationTimerRef.current) {
       clearInterval(durationTimerRef.current);
+      durationTimerRef.current = null;
+    }
+    clearConnectionTimer();
+    pendingCandidatesRef.current = [];
+  }, [clearConnectionTimer]);
+
+  const endCall = useCallback(() => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    callSounds.playCallEndTone();
+
+    if (socketRef.current?.connected && roomId) {
+      socketRef.current.emit("hang-up", { roomId });
     }
 
+    cleanupCallResources();
+
     navigate(-1);
-  }, [roomId, navigate]);
+  }, [roomId, navigate, cleanupCallResources]);
+
+  useEffect(() => {
+    const generation = ++mountGenerationRef.current;
+    return () => {
+      Promise.resolve().then(() => {
+        if (mountGenerationRef.current !== generation || endedRef.current) return;
+        endedRef.current = true;
+        if (socketRef.current?.connected && roomId) {
+          socketRef.current.emit("hang-up", { roomId });
+        }
+        callSounds.cleanup();
+        cleanupCallResources();
+      });
+    };
+  }, [roomId, cleanupCallResources]);
+
+  const markConnected = useCallback(() => {
+    clearConnectionTimer();
+    everConnectedRef.current = true;
+    restartAttemptRef.current = 0;
+    setStatus("Connected");
+    setIsPeerConnected(true);
+    callSounds.stopOutgoingTone();
+  }, [clearConnectionTimer]);
+
+  const startRecovery = useCallback(() => {
+    if (endedRef.current) return;
+    setStatus("Reconnecting...");
+    setIsPeerConnected(false);
+    if (!connectionTimerRef.current) {
+      connectionTimerRef.current = setTimeout(
+        endCall,
+        CONNECTION_RECOVERY_TIMEOUT_MS
+      );
+    }
+  }, [endCall]);
+
+  const requestIceRestart = useCallback(() => {
+    if (endedRef.current || !socketRef.current?.connected) return;
+    if (!isCaller) {
+      if (restartAttemptRef.current >= 1) return;
+      restartAttemptRef.current += 1;
+      socketRef.current.emit("signal", { roomId, data: { iceRestartRequest: true } });
+      return;
+    }
+
+    const pc = pcRef.current;
+    if (
+      !pc ||
+      pc.signalingState !== "stable" ||
+      makingOfferRef.current ||
+      restartAttemptRef.current >= 1
+    ) return;
+
+    restartAttemptRef.current += 1;
+    makingOfferRef.current = true;
+    pc.createOffer({ iceRestart: true })
+      .then((offer) => pc.setLocalDescription(offer))
+      .then(() => {
+        socketRef.current?.emit("signal", {
+          roomId,
+          data: { sdp: pc.localDescription },
+        });
+      })
+      .catch((error) => console.error("Failed to restart ICE:", error))
+      .finally(() => {
+        makingOfferRef.current = false;
+      });
+  }, [isCaller, roomId]);
 
   const createPeerConnection = useCallback(() => {
     const pc = new RTCPeerConnection(ICE_SERVERS);
@@ -110,47 +219,9 @@ const CallPage = () => {
       });
     }
 
-    // Handle remote tracks (audio and video)
-    pc.ontrack = (event) => {
-      let stream = event.streams && event.streams[0];
-      if (!stream) {
-        if (!remoteStreamRef.current) {
-          remoteStreamRef.current = new MediaStream();
-        }
-        remoteStreamRef.current.addTrack(event.track);
-        stream = remoteStreamRef.current;
-      } else {
-        remoteStreamRef.current = stream;
-      }
-
-      // 1. Play audio for ALL call types (audio & video)
-      if (remoteAudioRef.current) {
-        if (remoteAudioRef.current.srcObject !== stream) {
-          remoteAudioRef.current.srcObject = stream;
-        }
-        remoteAudioRef.current.play().catch((err) => {
-          console.warn("Remote audio play prevented by browser:", err);
-        });
-      }
-
-      // 2. Play video if video call
-      if (remoteVideoRef.current && !isAudioOnly) {
-        if (remoteVideoRef.current.srcObject !== stream) {
-          remoteVideoRef.current.srcObject = stream;
-        }
-        remoteVideoRef.current.play().catch((err) => {
-          console.warn("Remote video play prevented by browser:", err);
-        });
-      }
-
-      setIsPeerConnected(true);
-      setStatus("Connected");
-      callSounds.stopOutgoingTone();
-    };
-
     // Send ICE candidates to signaling server
     pc.onicecandidate = (event) => {
-      if (event.candidate && socketRef.current) {
+      if (event.candidate && socketRef.current?.connected) {
         socketRef.current.emit("signal", {
           roomId,
           data: { candidate: event.candidate },
@@ -160,19 +231,71 @@ const CallPage = () => {
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "connected") {
-        setStatus("Connected");
-        setIsPeerConnected(true);
+        markConnected();
       } else if (
         pc.connectionState === "disconnected" ||
         pc.connectionState === "failed"
       ) {
-        setStatus("Call ended");
-        endCall();
+        startRecovery();
+        if (pc.connectionState === "failed") requestIceRestart();
       }
     };
 
+    pc.oniceconnectionstatechange = () => {
+      if (
+        pc.iceConnectionState === "connected" ||
+        pc.iceConnectionState === "completed"
+      ) {
+        markConnected();
+      } else if (
+        pc.iceConnectionState === "disconnected" ||
+        pc.iceConnectionState === "failed"
+      ) {
+        startRecovery();
+        if (pc.iceConnectionState === "failed") requestIceRestart();
+      }
+    };
+
+    pc.ontrack = (event) => {
+      let stream = event.streams && event.streams[0];
+      if (!stream) {
+        if (!remoteStreamRef.current) {
+          remoteStreamRef.current = new MediaStream();
+        }
+        if (!remoteStreamRef.current.getTracks().some((track) => track.id === event.track.id)) {
+          remoteStreamRef.current.addTrack(event.track);
+        }
+        stream = remoteStreamRef.current;
+      } else if (!remoteStreamRef.current) {
+        remoteStreamRef.current = stream;
+      } else if (remoteStreamRef.current !== stream) {
+        stream.getTracks().forEach((track) => {
+          if (!remoteStreamRef.current.getTracks().some((existing) => existing.id === track.id)) {
+            remoteStreamRef.current.addTrack(track);
+          }
+        });
+        stream = remoteStreamRef.current;
+      }
+
+      if (remoteAudioRef.current && remoteAudioRef.current.srcObject !== stream) {
+        remoteAudioRef.current.srcObject = stream;
+        remoteAudioRef.current.play().catch((err) => {
+          console.warn("Remote audio play prevented by browser:", err);
+        });
+      }
+
+      if (remoteVideoRef.current && !isAudioOnly && remoteVideoRef.current.srcObject !== stream) {
+        remoteVideoRef.current.srcObject = stream;
+        remoteVideoRef.current.play().catch((err) => {
+          console.warn("Remote video play prevented by browser:", err);
+        });
+      }
+
+      markConnected();
+    };
+
     return pc;
-  }, [roomId, endCall]);
+  }, [roomId, isAudioOnly, markConnected, startRecovery, requestIceRestart]);
 
   const handleToggleMic = () => {
     if (localStreamRef.current) {
@@ -208,6 +331,11 @@ const CallPage = () => {
     }
 
     let cancelled = false;
+    const signalingHandlers = [];
+    const listen = (event, handler) => {
+      signalingHandlers.push([event, handler]);
+      socket.on(event, handler);
+    };
 
     const initCall = async () => {
       try {
@@ -240,75 +368,124 @@ const CallPage = () => {
           }
         }
 
-        if (cancelled) return;
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
         localStreamRef.current = stream;
         if (localVideoRef.current && !isAudioOnly) {
           localVideoRef.current.srcObject = stream;
+          localVideoRef.current.play().catch((err) => {
+            console.warn("Local video play prevented by browser:", err);
+          });
         }
 
-        // Connect to signaling socket
-        const socket = io(SIGNALING_SERVER_URL, {
-          withCredentials: true,
-          transports: ["websocket", "polling"],
-        });
+        // Use the application's authenticated shared socket.
+        // Opening a second socket here can create a separate identity
+        // and is also invalid because the old code referenced io/SIGNALING_SERVER_URL.
         socketRef.current = socket;
 
-        socket.on("connect", () => {
-          socket.emit("join-room", roomId);
+        const joinRoom = () => {
+          if (socket.connected) socket.emit("join-room", roomId);
+        };
+        const makeOffer = async (pc, iceRestart = false) => {
+          if (makingOfferRef.current) return;
+          makingOfferRef.current = true;
+          try {
+            const offer = await pc.createOffer(iceRestart ? { iceRestart: true } : undefined);
+            await pc.setLocalDescription(offer);
+            socket.emit("signal", { roomId, data: { sdp: pc.localDescription } });
+          } catch (err) {
+            console.error("Error creating offer:", err);
+          } finally {
+            makingOfferRef.current = false;
+          }
+        };
+
+        listen("connect", () => {
+          joinRoom();
+          if (pcRef.current?.connectionState === "connected") {
+            markConnected();
+          }
+        });
+        listen("disconnect", startRecovery);
+        if (socket.connected) {
+          joinRoom();
+        } else {
+          socket.connect();
+        }
+
+        listen("joined-room", async ({ otherPeers }) => {
+          if (cancelled) return;
+          if (!pcRef.current) createPeerConnection();
         });
 
-        socket.on("joined-room", async ({ otherPeers }) => {
-          if (cancelled) return;
-          const pc = createPeerConnection();
-
-          // If caller, create SDP Offer
-          if (isCaller || otherPeers.length > 0) {
-            try {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              socket.emit("signal", { roomId, data: { sdp: offer } });
-            } catch (err) {
-              console.error("Error creating offer:", err);
-            }
-          }
+        listen("peer-ready", async ({ roomId: readyRoomId }) => {
+          if (cancelled || readyRoomId !== roomId || !isCaller) return;
+          const pc = pcRef.current || createPeerConnection();
+          await makeOffer(pc, everConnectedRef.current);
         });
 
         // Handle signaling data (SDP and ICE Candidates)
-        socket.on("signal", async ({ data }) => {
-          if (cancelled) return;
+        listen("signal", async ({ roomId: signalRoomId, data } = {}) => {
+          if (cancelled || signalRoomId !== roomId || !data) return;
+          if (data.iceRestartRequest) {
+            if (isCaller) requestIceRestart();
+            return;
+          }
+
           const pc = pcRef.current || createPeerConnection();
 
           if (data.sdp) {
             try {
-              await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+              await pc.setRemoteDescription(data.sdp);
               if (data.sdp.type === "offer") {
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
-                socket.emit("signal", { roomId, data: { sdp: answer } });
+                socket.emit("signal", {
+                  roomId,
+                  data: { sdp: pc.localDescription },
+                });
+              }
+              while (pendingCandidatesRef.current.length) {
+                const candidate = pendingCandidatesRef.current.shift();
+                await pc.addIceCandidate(candidate);
               }
             } catch (err) {
               console.error("Error handling SDP:", err);
             }
           } else if (data.candidate) {
             try {
-              await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+              if (pc.remoteDescription) {
+                await pc.addIceCandidate(data.candidate);
+              } else {
+                pendingCandidatesRef.current.push(data.candidate);
+              }
             } catch (err) {
               console.error("Error adding ICE candidate:", err);
             }
           }
         });
 
-        socket.on("peer-hung-up", () => {
-          setStatus("Other user hung up");
+        listen("peer-hung-up", ({ roomId: endedRoomId } = {}) => {
+          if (endedRoomId !== roomId) return;
           callSounds.playCallEndTone();
-          setTimeout(() => endCall(), 1200);
+          endCall();
         });
 
-        socket.on("room-full", () => {
+        listen("room-full", () => {
           setStatus("Call room is full");
           callSounds.playCallEndTone();
-          setTimeout(() => endCall(), 2000);
+          endCall();
         });
+
+        const handleCallResponse = ({ accepted, roomId: responseRoomId } = {}) => {
+          if (responseRoomId !== roomId || accepted !== false) return;
+          setStatus("Call declined");
+          callSounds.playCallEndTone();
+          endCall();
+        };
+        listen("call-response", handleCallResponse);
       } catch (err) {
         console.error("Failed to initialize call:", err);
         setStatus("Could not access camera/microphone.");
@@ -320,15 +497,42 @@ const CallPage = () => {
     return () => {
       cancelled = true;
       callSounds.cleanup();
+      clearConnectionTimer();
       if (socketRef.current) {
-        socketRef.current.disconnect();
+        signalingHandlers.forEach(([event, handler]) => {
+          socketRef.current.off(event, handler);
+        });
       }
     };
-  }, [roomId, isAudioOnly, isCaller, createPeerConnection, endCall, navigate]);
+  }, [
+    roomId,
+    isAudioOnly,
+    isCaller,
+    createPeerConnection,
+    endCall,
+    navigate,
+    clearConnectionTimer,
+    markConnected,
+    startRecovery,
+    requestIceRestart,
+  ]);
+
+  useEffect(() => {
+    const video = localVideoRef.current;
+    const stream = localStreamRef.current;
+    if (!video || isAudioOnly || !stream) return;
+
+    video.muted = true;
+    video.playsInline = true;
+    if (video.srcObject !== stream) video.srcObject = stream;
+    video.play().catch((err) => {
+      console.warn("Local video play prevented by browser:", err);
+    });
+  }, [camOff, isAudioOnly]);
 
   // Manage outgoing ringback tone while waiting for peer to answer
   useEffect(() => {
-    if (isCaller && !isPeerConnected) {
+    if (isCaller && !everConnectedRef.current) {
       callSounds.startOutgoingTone();
     } else {
       callSounds.stopOutgoingTone();
@@ -406,6 +610,7 @@ const CallPage = () => {
               ref={remoteVideoRef}
               autoPlay
               playsInline
+              muted
               className="call-video-element"
             />
           )}

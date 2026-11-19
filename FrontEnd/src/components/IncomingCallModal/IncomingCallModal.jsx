@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-// import { Phone, PhoneOff, Video } from "lucide-react";
+import { Phone, PhoneOff, Video } from "lucide-react";
 import { socket } from "../../socket";
 import { callSounds } from "../../utils/callSounds";
 import "./IncomingCallModal.scss";

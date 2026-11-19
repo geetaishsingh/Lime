@@ -271,9 +271,16 @@ const ChatBox = ({
 
   // Requirement 7: Audio & Video Calling Initiators
   const handleStartCall = (callType = "video") => {
-    const roomId = [currentUser._id, otherUser._id].sort().join("-");
+    if (!socket.connected) {
+      toast.error("Reconnecting to Lime. Please try the call again.");
+      return;
+    }
 
-    // Emit socket call event to alert recipient
+    const callId =
+      globalThis.crypto?.randomUUID?.() ||
+      `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const roomId = callId;
+
     socket.emit("call-user", {
       recipientId: otherUser._id,
       caller: {
@@ -284,24 +291,30 @@ const ChatBox = ({
       },
       callType,
       roomId,
-    });
+    }, ({ delivered } = {}) => {
+      if (!delivered) {
+        toast.error("This user is offline and cannot answer the call.");
+        return;
+      }
 
-    const query = new URLSearchParams({
-      roomId,
-      callType,
-      remoteName: otherUser.name || otherUser.username || "User",
-      remoteAvatar: otherUser.profileImage || "",
-      isCaller: "true",
-    }).toString();
-
-    navigate(`/call?${query}`, {
-      state: {
+      const query = new URLSearchParams({
         roomId,
         callType,
-        isCaller: true,
-        callerName: otherUser.name || otherUser.username,
-        avatarUrl: otherUser.profileImage,
-      },
+        remoteName: otherUser.name || otherUser.username || "User",
+        remoteAvatar: otherUser.profileImage || "",
+        isCaller: "true",
+      }).toString();
+
+      navigate(`/call?${query}`, {
+        state: {
+          roomId,
+          callType,
+          isCaller: true,
+          otherUser,
+          callerName: otherUser.name || otherUser.username,
+          avatarUrl: otherUser.profileImage,
+        },
+      });
     });
   };
 

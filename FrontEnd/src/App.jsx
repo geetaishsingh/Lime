@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Outlet } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { Toaster, toast } from "react-hot-toast";
@@ -23,6 +23,10 @@ export { serverUrl };
 const App = () => {
   const { user, theme } = useSelector((state) => state.user);
   const dispatch = useDispatch();
+  const userIdRef = useRef(user?._id);
+  const themeRef = useRef(theme);
+  userIdRef.current = user?._id;
+  themeRef.current = theme;
 
   // Load user profile on mount
   useGetUser();
@@ -57,27 +61,22 @@ const App = () => {
     fetchUnreadCount();
   }, [user?._id, dispatch]);
 
-  // Manage socket connection & real-time events
+  // Keep the shared socket alive across user and theme changes.
   useEffect(() => {
-    socket.connect();
-
-    socket.on("connect", () => {
-      if (user?._id) {
-        socket.emit("identity", { userId: user._id });
+    const handleConnect = () => {
+      if (userIdRef.current) {
+        socket.emit("identity", { userId: userIdRef.current });
       }
-    });
+    };
 
-    // Real-time unread messages count listener (emitted from server)
     const handleUnreadCount = ({ count }) => {
       if (typeof count === "number") {
         dispatch(setUnreadMessagesCount(count));
       }
     };
-    socket.on("unreadMessageCount", handleUnreadCount);
 
-    // Sync unread count whenever an incoming message arrives
     const handleNewMessage = (msg) => {
-      if (msg?.receiverId?.toString() === user?._id?.toString()) {
+      if (msg?.receiverId?.toString() === userIdRef.current?.toString()) {
         axios
           .get(`${serverUrl}/api/message/unread-count`, { withCredentials: true })
           .then(({ data }) => {
@@ -88,10 +87,8 @@ const App = () => {
           .catch(() => {});
       }
     };
-    socket.on("newMessage", handleNewMessage);
 
-    // Real-time notifications listener
-    socket.on("notification", (notif) => {
+    const handleNotification = (notif) => {
       dispatch(addNotification(notif));
       const senderName = notif.sender?.username || "Someone";
       toast(
@@ -113,30 +110,33 @@ const App = () => {
           duration: 4000,
           position: "top-right",
           style: {
-            background: theme === "dark" ? "#18181b" : "#ffffff",
-            color: theme === "dark" ? "#f4f4f5" : "#09090b",
-            border: theme === "dark" ? "1px solid #27272a" : "1px solid #e4e4e7",
+            background: themeRef.current === "dark" ? "#18181b" : "#ffffff",
+            color: themeRef.current === "dark" ? "#f4f4f5" : "#09090b",
+            border: themeRef.current === "dark" ? "1px solid #27272a" : "1px solid #e4e4e7",
             borderRadius: "12px",
             boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2)",
           },
         }
       );
-    });
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("unreadMessageCount", handleUnreadCount);
+    socket.on("newMessage", handleNewMessage);
+    socket.on("notification", handleNotification);
+    socket.connect();
 
     return () => {
-      socket.off("connect");
-      socket.off("notification");
+      socket.off("connect", handleConnect);
+      socket.off("notification", handleNotification);
       socket.off("unreadMessageCount", handleUnreadCount);
       socket.off("newMessage", handleNewMessage);
       socket.disconnect();
     };
-  }, [dispatch, user?._id, theme]);
+  }, [dispatch]);
 
-  // Identify user on socket whenever user ID changes
   useEffect(() => {
-    if (user?._id) {
-      socket.emit("identity", { userId: user._id });
-    }
+    if (socket.connected) socket.emit("identity", { userId: user?._id });
   }, [user?._id]);
 
   return (
